@@ -1,0 +1,262 @@
+﻿@page "/customers/details/{Id:int}"
+@inject CarRental.Web.Services.CustomerApiClient CustomerApiClient
+@inject CarRental.Web.Services.PermissionApiClient PermissionApiClient
+@inject NavigationManager NavigationManager
+@inject IToastService ToastService
+@using CarRental.Core.Models
+@using Blazored.Toast.Services
+
+<div class="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4 font-sans">
+    <div class="max-w-4xl mx-auto animate-in slide-in-from-bottom-4 duration-700">
+
+        <nav class="mb-6">
+            <ol class="flex items-center space-x-2 text-sm text-gray-600">
+                <li><a href="/customers" class="hover:text-blue-600 transition-colors">Clientes</a></li>
+                <li><span class="mx-2">›</span></li>
+                <li class="text-gray-900 font-medium">Información del Cliente</li>
+            </ol>
+        </nav>
+
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-900">Información del Cliente</h1>
+        </div>
+
+        @if (isLoadingPermissions || isLoading)
+        {
+            <div class="bg-white rounded-2xl shadow-lg p-8">
+                <div class="flex flex-col items-center justify-center space-y-4">
+                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                    <p class="text-gray-600 text-lg">@(isLoadingPermissions ? "Cargando información..." : "Cargando información del cliente...")</p>
+                </div>
+            </div>
+        }
+        else if (!hasModuleAccess)
+        {
+            <div class="bg-white rounded-2xl shadow-lg p-8">
+                <div class="flex flex-col items-center justify-center space-y-4">
+                    <div class="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center">
+                        <svg class="w-12 h-12 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                    </div>
+                    <div class="text-center">
+                        <h3 class="text-lg font-semibold text-red-800 mb-2">Acceso Denegado</h3>
+                        <p class="text-red-600">No tienes acceso al módulo de Clientes.</p>
+                    </div>
+                    <button @onclick="GoBackToList" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
+                        Volver al inicio
+                    </button>
+                </div>
+            </div>
+        }
+        else if (!canView)
+        {
+            <div class="bg-white rounded-2xl shadow-lg p-8">
+                <div class="flex flex-col items-center justify-center space-y-4">
+                    <div class="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center">
+                        <svg class="w-12 h-12 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <div class="text-center">
+                        <h3 class="text-lg font-semibold text-orange-800 mb-2">Permiso Insuficiente</h3>
+                        <p class="text-orange-600">No tienes permisos para ver los detalles de clientes.</p>
+                    </div>
+                    <button @onclick="GoBackToList" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
+                        Volver a la lista
+                    </button>
+                </div>
+            </div>
+        }
+        else if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="bg-white rounded-2xl shadow-lg p-8">
+                <div class="flex flex-col items-center justify-center space-y-4">
+                    <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                        <span class="text-2xl">⚠️</span>
+                    </div>
+                    <div class="text-center">
+                        <h3 class="text-lg font-semibold text-red-800 mb-2">Error al cargar los datos</h3>
+                        <p class="text-red-600">@errorMessage</p>
+                    </div>
+                    <button @onclick="GoBackToList" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
+                        Volver a la lista
+                    </button>
+                </div>
+            </div>
+        }
+        else if (customer != null)
+        {
+            <div class="bg-white rounded-2xl shadow-lg overflow-hidden space-y-6">
+
+                <!-- Información Personal -->
+                <div class="px-6 pt-4">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">Información del Cliente</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8">
+                        @DisplayItem("Nombres", customer.FirstName)
+                        @DisplayItem("Apellidos", customer.LastName)
+                        @DisplayItem("Tipo de Documento", GetDocumentTypeDisplay(customer.TypeOfDocument))
+                        @DisplayItem("Número de Documento", customer.DocumentNumber)
+                        @DisplayItem("Fecha de Nacimiento", FormatDate(customer.DateOfBirth))
+                        @DisplayItem("Fecha de Registro", customer.RegistrationDate.ToString("dd/MM/yyyy"))
+                    </div>
+                </div>
+
+                <!-- Información de Contacto -->
+                <div class="px-6 pt-4 border-t border-gray-200">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">Información de Contacto</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8">
+                        @DisplayItem("Email", $"<a href='mailto:{customer.Email}' class='text-blue-600 hover:text-blue-800'>{customer.Email}</a>", true)
+                        @DisplayItem("Teléfono", $"<a href='tel:{customer.PhoneNumber}' class='text-green-600 hover:text-green-800'>{customer.PhoneNumber}</a>", true)
+                        @DisplayItem("País", customer.Country)
+                        @DisplayItem("Estado/Provincia", customer.StateProvince)
+                        @DisplayItem("Ciudad", customer.City)
+                        @DisplayItem("Dirección", customer.Address)
+                    </div>
+                </div>
+
+                <!-- Botones -->
+                <div class="bg-gray-50 px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
+                    <button @onclick="GoBackToList" class="px-6 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors">
+                        Volver a la lista
+                    </button>
+                    @if (canEdit)
+                    {
+                        <a href="/customers/edit/@customer.Id" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                            Editar Cliente
+                        </a>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private Customer customer;
+    private string errorMessage = string.Empty;
+    private bool isLoading = true;
+    private bool isLoadingPermissions = true;
+
+    private bool hasModuleAccess = false;
+    private bool canView = false;
+    private bool canEdit = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPermissions();
+
+        if (hasModuleAccess && canView)
+        {
+            await LoadCustomerData();
+        }
+
+        isLoadingPermissions = false;
+    }
+
+    private async Task LoadPermissions()
+    {
+        try
+        {
+            // 1. Verificar acceso al módulo
+            var moduleAccessResult = await PermissionApiClient.HasPermissionAsync("Customer", "Access");
+            hasModuleAccess = moduleAccessResult.IsSuccess && moduleAccessResult.Data;
+
+            if (!hasModuleAccess)
+            {
+                return;
+            }
+
+            // 2. Verificar permisos de acciones
+            var viewResult = await PermissionApiClient.HasPermissionAsync("Customer", "View");
+            canView = viewResult.IsSuccess && viewResult.Data;
+
+            var editResult = await PermissionApiClient.HasPermissionAsync("Customer", "Edit");
+            canEdit = editResult.IsSuccess && editResult.Data;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar permisos: {ex.Message}");
+            hasModuleAccess = false;
+        }
+    }
+
+    private async Task LoadCustomerData()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = string.Empty;
+
+            if (Id <= 0)
+            {
+                errorMessage = "ID de cliente no válido.";
+                ToastService.ShowError(errorMessage);
+                NavigationManager.NavigateTo("/customers");
+                return;
+            }
+
+            var result = await CustomerApiClient.GetCustomerByIdAsync(Id);
+
+            if (result.IsSuccess && result.Data != null)
+            {
+                customer = result.Data;
+            }
+            else
+            {
+                errorMessage = $"Error al cargar los detalles del cliente: {result.ErrorMessage ?? "Cliente no encontrado"}";
+                ToastService.ShowError(errorMessage);
+                await Task.Delay(2000);
+                NavigationManager.NavigateTo("/customers");
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error inesperado: {ex.Message}";
+            ToastService.ShowError(errorMessage);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void GoBackToList()
+    {
+        NavigationManager.NavigateTo("/customers");
+    }
+
+    private string GetDocumentTypeDisplay(object documentType)
+    {
+        return documentType?.ToString() ?? "No especificado";
+    }
+
+    private string FormatDate(DateTime? date)
+    {
+        return date?.ToString("dd/MM/yyyy") ?? "No especificado";
+    }
+
+    RenderFragment DisplayItem(string label, string value, bool isRawHtml = false) => builder =>
+    {
+        builder.OpenElement(0, "div");
+        builder.AddAttribute(1, "class", "space-y-1 pb-3");
+
+        builder.OpenElement(2, "p");
+        builder.AddAttribute(3, "class", "text-sm text-gray-500");
+        builder.AddContent(4, label);
+        builder.CloseElement();
+
+        builder.OpenElement(5, "p");
+        builder.AddAttribute(6, "class", "text-gray-900 font-medium");
+        if (isRawHtml)
+            builder.AddMarkupContent(7, value);
+        else
+            builder.AddContent(7, value);
+        builder.CloseElement();
+
+        builder.CloseElement();
+    };
+}

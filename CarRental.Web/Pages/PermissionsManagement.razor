@@ -1,0 +1,594 @@
+﻿@page "/permissions"
+@inject CarRental.Web.Services.PermissionApiClient PermissionApiClient
+@inject IToastService ToastService
+@using CarRental.Core.Models
+@using CarRental.Core.Models.Dtos
+@using Blazored.Toast.Services
+
+<div class="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6">
+    <div class="max-w-[1600px] mx-auto">
+
+        <!-- Encabezado -->
+        <div class="flex justify-between items-center mb-6">
+            <div>
+                <h1 class="text-3xl font-bold text-gray-800">Gestión de Permisos</h1>
+                <p class="text-gray-600 mt-1">Administra los permisos de acceso a módulos y acciones por usuario</p>
+            </div>
+            <div class="flex space-x-3">
+                <button @onclick="InitializePermissions"
+                        class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Inicializar Permisos
+                </button>
+                <button @onclick="RefreshData"
+                        class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Actualizar
+                </button>
+            </div>
+        </div>
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+                <div class="flex items-center">
+                    <svg class="w-5 h-5 text-red-600 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                        <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                    </svg>
+                    <span class="text-red-800 font-medium">@errorMessage</span>
+                </div>
+            </div>
+        }
+        else if (isLoading)
+        {
+            <div class="bg-white rounded-xl shadow p-12 text-center">
+                <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+                <p class="text-gray-600 mt-4">Cargando permisos...</p>
+            </div>
+        }
+        else if (!usersPermissions.Any())
+        {
+            <div class="bg-white rounded-xl shadow p-12 text-center">
+                <svg class="w-16 h-16 text-gray-400 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z" />
+                </svg>
+                <p class="text-gray-600 text-lg">No hay usuarios disponibles</p>
+            </div>
+        }
+        else
+        {
+            <!-- Selector de Usuario -->
+            <div class="bg-white rounded-xl shadow mb-6 p-6">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Seleccionar Usuario</label>
+                <select @bind="selectedUserId" @bind:after="OnUserChanged"
+                        class="w-full md:w-96 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                    <option value="0">-- Seleccione un usuario --</option>
+                    @foreach (var user in usersPermissions)
+                    {
+                        <option value="@user.UserId">@user.UserName (@GetRoleDisplayName(user.Role))</option>
+                    }
+                </select>
+            </div>
+
+            @if (selectedUserPermission != null)
+            {
+                <!-- Información del Usuario -->
+                <div class="bg-stone-300 rounded-xl shadow-lg p-6 mb-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-2xl font-bold">@selectedUserPermission.UserName</h2>
+                            <p class="text-gray-700 mt-1">
+                                Rol: <span class="font-semibold text-gray-700">@GetRoleDisplayName(selectedUserPermission.Role)</span>
+                            </p>
+                        </div>
+                        <button @onclick="() => SaveUserPermissions(selectedUserPermission.UserId)"
+                                disabled="@(!HasPendingChanges(selectedUserPermission.UserId))"
+                                class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors @GetSaveButtonClass()">
+                            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                            </svg>
+                            Guardar Cambios
+                            @if (HasPendingChanges(selectedUserPermission.UserId))
+                            {
+                                <span class="ml-2 bg-white text-blue-600 rounded-full px-2 py-0.5 text-xs font-bold">
+                                    @GetPendingChangesCount(selectedUserPermission.UserId)
+                                </span>
+                            }
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Permisos por Módulo -->
+                <div class="space-y-4">
+                    @foreach (var module in GetModulesWithPermissions(selectedUserPermission))
+                    {
+                        var modulePermission = GetModulePermission(selectedUserPermission, module.Module);
+                        var moduleActions = GetModuleActions(selectedUserPermission, module.Module);
+                        var isModuleAccessGranted = modulePermission?.IsGranted ?? false;
+
+                        <div class="bg-white rounded-xl shadow-lg overflow-hidden border-2 @GetModuleBorderClass(isModuleAccessGranted)">
+                            <!-- Encabezado del Módulo -->
+                            <div class="@GetModuleHeaderClass(isModuleAccessGranted) p-6">
+                                <div class="flex items-center justify-between">
+                                    <div class="flex items-center space-x-4">
+                                        <div class="@GetModuleIconContainerClass(isModuleAccessGranted)">
+                                            @GetModuleIcon(module.Module)
+                                        </div>
+                                        <div>
+                                            <h3 class="text-xl font-bold @GetModuleTitleClass(isModuleAccessGranted)">
+                                                @module.ModuleName
+                                            </h3>
+                                            <p class="@GetModuleDescriptionClass(isModuleAccessGranted) text-sm mt-1">
+                                                @GetModuleDescription(module.Module)
+                                            </p>
+                                        </div>
+                                    </div>
+
+                                    <!-- Toggle de Acceso al Módulo -->
+                                    <div class="flex items-center space-x-3">
+                                        @if (modulePermission?.IsFromRole == true && modulePermission?.IsGranted == true)
+                                        {
+                                            <span class="text-xs bg-green-100 text-green-800 px-3 py-1 rounded-full font-medium">
+                                                Heredado del rol
+                                            </span>
+                                        }
+                                        @if (modulePermission?.IsDenied == true)
+                                        {
+                                            <span class="text-xs bg-red-100 text-red-800 px-3 py-1 rounded-full font-medium">
+                                                Denegado explícitamente
+                                            </span>
+                                        }
+                                        <label class="relative inline-flex items-center cursor-pointer">
+                                            <input type="checkbox"
+                                                   checked="@isModuleAccessGranted"
+                                                   @onchange="@(e => UpdatePermission(selectedUserPermission.UserId, modulePermission.PermissionId, (bool)e.Value))"
+                                                   class="sr-only peer" />
+                                            <div class="w-14 h-7 bg-gray-300 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-0.5 after:left-[4px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-6 after:w-6 after:transition-all peer-checked:bg-green-600"></div>
+                                            <span class="ml-3 text-sm font-medium @GetModuleTitleClass(isModuleAccessGranted)">
+                                                @(isModuleAccessGranted ? "Acceso Permitido" : "Sin Acceso")
+                                            </span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Acciones del Módulo -->
+                            @if (isModuleAccessGranted && moduleActions.Any())
+                            {
+                                <div class="p-6 bg-gray-50">
+                                    <h4 class="text-sm font-semibold text-gray-700 uppercase tracking-wider mb-4">
+                                        Acciones Disponibles
+                                    </h4>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                                        @foreach (var action in moduleActions)
+                                        {
+                                            <div class="@GetActionCardClass(action.IsGranted)">
+                                                <div class="flex items-center justify-between">
+                                                    <div class="flex items-center space-x-3">
+                                                        <div class="@GetActionIconClass(action.IsGranted)">
+                                                            @GetActionIcon(action.Action)
+                                                        </div>
+                                                        <div>
+                                                            <p class="@GetActionTitleClass(action.IsGranted) font-medium">
+                                                                @GetActionDisplayName(action.Action)
+                                                            </p>
+                                                            @if (action.IsFromRole)
+                                                            {
+                                                                <span class="text-xs text-green-600">Heredado</span>
+                                                            }
+                                                            @if (action.IsDenied)
+                                                            {
+                                                                <span class="text-xs text-red-600">Denegado</span>
+                                                            }
+                                                        </div>
+                                                    </div>
+                                                    <input type="checkbox"
+                                                           checked="@action.IsGranted"
+                                                           @onchange="@(e => UpdatePermission(selectedUserPermission.UserId, action.PermissionId, (bool)e.Value))"
+                                                           class="h-5 w-5 text-blue-600 focus:ring-blue-500 border-gray-300 rounded cursor-pointer" />
+                                                </div>
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                            }
+                            else if (!isModuleAccessGranted)
+                            {
+                                <div class="p-6 bg-gray-50 text-center">
+                                    <svg class="w-12 h-12 text-gray-400 mx-auto mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                    </svg>
+                                    <p class="text-gray-600">El acceso al módulo debe estar permitido para configurar acciones</p>
+                                </div>
+                            }
+                        </div>
+                    }
+                </div>
+
+                <!-- Leyenda -->
+                <div class="bg-white rounded-xl shadow p-6 mt-6">
+                    <h3 class="text-lg font-semibold text-gray-800 mb-4">Leyenda</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+                        <div class="flex items-center space-x-2">
+                            <div class="w-4 h-4 bg-green-500 rounded"></div>
+                            <span>Permiso otorgado</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <div class="w-4 h-4 bg-gray-300 rounded"></div>
+                            <span>Permiso denegado</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="bg-green-100 text-green-800 px-2 py-0.5 rounded-full text-xs font-medium">Heredado</span>
+                            <span>Permiso del rol</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <span class="bg-red-100 text-red-800 px-2 py-0.5 rounded-full text-xs font-medium">Denegado</span>
+                            <span>Denegación explícita</span>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <div class="w-14 h-7 bg-green-600 rounded-full"></div>
+                            <span>Toggle activado</span>
+                        </div>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    private List<UserPermissionDto> usersPermissions = new();
+    private int selectedUserId = 0;
+    private UserPermissionDto selectedUserPermission = null;
+    private string errorMessage = string.Empty;
+    private bool isLoading = true;
+    private Dictionary<int, List<UserPermissionUpdate>> pendingUpdates = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+    }
+
+    private async Task LoadData()
+    {
+        isLoading = true;
+        errorMessage = string.Empty;
+
+        try
+        {
+            var usersResult = await PermissionApiClient.GetAllUsersPermissionsAsync();
+            if (usersResult.IsSuccess)
+            {
+                usersPermissions = usersResult.Data ?? new List<UserPermissionDto>();
+            }
+            else
+            {
+                errorMessage = $"Error al cargar permisos: {usersResult.ErrorMessage}";
+                ToastService.ShowError(errorMessage);
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error inesperado: {ex.Message}";
+            ToastService.ShowError(errorMessage);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void OnUserChanged()
+    {
+        selectedUserPermission = usersPermissions.FirstOrDefault(u => u.UserId == selectedUserId);
+        StateHasChanged();
+    }
+
+    private async Task RefreshData()
+    {
+        selectedUserId = 0;
+        selectedUserPermission = null;
+        pendingUpdates.Clear();
+        await LoadData();
+        ToastService.ShowInfo("Datos actualizados");
+    }
+
+    private async Task InitializePermissions()
+    {
+        try
+        {
+            var result = await PermissionApiClient.InitializeDefaultPermissionsAsync();
+            if (result.IsSuccess)
+            {
+                ToastService.ShowSuccess("Permisos inicializados correctamente");
+                await RefreshData();
+            }
+            else
+            {
+                ToastService.ShowError($"Error al inicializar permisos: {result.ErrorMessage}");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error inesperado: {ex.Message}");
+        }
+    }
+
+    private void UpdatePermission(int userId, int permissionId, bool isGranted)
+    {
+        if (!pendingUpdates.ContainsKey(userId))
+        {
+            pendingUpdates[userId] = new List<UserPermissionUpdate>();
+        }
+
+        var existingUpdate = pendingUpdates[userId].FirstOrDefault(u => u.PermissionId == permissionId);
+        if (existingUpdate != null)
+        {
+            existingUpdate.IsGranted = isGranted;
+        }
+        else
+        {
+            pendingUpdates[userId].Add(new UserPermissionUpdate
+            {
+                PermissionId = permissionId,
+                IsGranted = isGranted
+            });
+        }
+
+        // Actualizar UI inmediatamente
+        if (selectedUserPermission != null && selectedUserPermission.UserId == userId)
+        {
+            var permission = selectedUserPermission.Permissions.FirstOrDefault(p => p.PermissionId == permissionId);
+            if (permission != null)
+            {
+                permission.IsGranted = isGranted;
+                permission.IsFromRole = false;
+                permission.IsDenied = !isGranted;
+            }
+        }
+
+        StateHasChanged();
+    }
+
+    private async Task SaveUserPermissions(int userId)
+    {
+        if (!HasPendingChanges(userId))
+        {
+            ToastService.ShowInfo("No hay cambios pendientes");
+            return;
+        }
+
+        try
+        {
+            var result = await PermissionApiClient.UpdateUserPermissionsAsync(userId, pendingUpdates[userId]);
+            if (result.IsSuccess)
+            {
+                ToastService.ShowSuccess("Permisos actualizados correctamente");
+                pendingUpdates.Remove(userId);
+                await LoadData();
+
+                // Reseleccionar el usuario
+                selectedUserPermission = usersPermissions.FirstOrDefault(u => u.UserId == userId);
+            }
+            else
+            {
+                ToastService.ShowError($"Error al actualizar permisos: {result.ErrorMessage}");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error inesperado: {ex.Message}");
+        }
+    }
+
+    private bool HasPendingChanges(int userId) => pendingUpdates.ContainsKey(userId) && pendingUpdates[userId].Any();
+
+    private int GetPendingChangesCount(int userId) => pendingUpdates.ContainsKey(userId) ? pendingUpdates[userId].Count : 0;
+
+    private string GetSaveButtonClass()
+    {
+        var hasChanges = selectedUserPermission != null && HasPendingChanges(selectedUserPermission.UserId);
+        return hasChanges
+            ? "inline-flex items-center px-6 py-3 bg-white text-blue-600 rounded-lg hover:bg-blue-50 transition-colors font-semibold shadow-lg"
+            : "inline-flex items-center px-6 py-3 bg-white/50 text-blue-300 rounded-lg cursor-not-allowed font-semibold";
+    }
+
+    private List<ModuleGroup> GetModulesWithPermissions(UserPermissionDto userPermission)
+    {
+        return userPermission.Permissions
+            .Where(p => p.Type == PermissionType.Module)
+            .Select(p => new ModuleGroup
+            {
+                Module = p.Module,
+                ModuleName = GetModuleDisplayName(p.Module),
+                DisplayOrder = p.DisplayOrder
+            })
+            .OrderBy(m => m.DisplayOrder)
+            .ToList();
+    }
+
+    private PermissionStatus GetModulePermission(UserPermissionDto userPermission, string module)
+    {
+        return userPermission.Permissions.FirstOrDefault(p => p.Module == module && p.Type == PermissionType.Module);
+    }
+
+    private List<PermissionStatus> GetModuleActions(UserPermissionDto userPermission, string module)
+    {
+        return userPermission.Permissions
+            .Where(p => p.Module == module && p.Type == PermissionType.Action)
+            .OrderBy(p => p.DisplayOrder)
+            .ToList();
+    }
+
+    private string GetModuleBorderClass(bool isGranted) =>
+        isGranted ? "border-green-300" : "border-gray-200";
+
+    private string GetModuleHeaderClass(bool isGranted) =>
+        isGranted ? "bg-gradient-to-r from-green-50 to-emerald-50" : "bg-gray-100";
+
+    private string GetModuleIconContainerClass(bool isGranted) =>
+        isGranted ? "w-12 h-12 rounded-lg bg-green-600 text-white flex items-center justify-center"
+                  : "w-12 h-12 rounded-lg bg-gray-400 text-white flex items-center justify-center";
+
+    private string GetModuleTitleClass(bool isGranted) =>
+        isGranted ? "text-gray-800" : "text-gray-500";
+
+    private string GetModuleDescriptionClass(bool isGranted) =>
+        isGranted ? "text-gray-600" : "text-gray-400";
+
+    private string GetActionCardClass(bool isGranted) =>
+        isGranted ? "bg-white border-2 border-green-200 rounded-lg p-4 hover:shadow-md transition-shadow"
+                  : "bg-gray-50 border-2 border-gray-200 rounded-lg p-4";
+
+    private string GetActionIconClass(bool isGranted) =>
+        isGranted ? "w-8 h-8 rounded-full bg-green-100 text-green-600 flex items-center justify-center"
+                  : "w-8 h-8 rounded-full bg-gray-200 text-gray-500 flex items-center justify-center";
+
+    private string GetActionTitleClass(bool isGranted) =>
+        isGranted ? "text-gray-800 text-sm" : "text-gray-500 text-sm";
+
+    private string GetModuleDisplayName(string module)
+    {
+        return module switch
+        {
+            "Customer" => "Clientes",
+            "Vehicle" => "Vehículos",
+            "Rental" => "Alquileres",
+            "Partner" => "Socios",
+            "FinancialReports" => "Reportes Financieros",
+            "User" => "Usuarios",
+            "Audit" => "Auditoría",
+            "Permission" => "Permisos",
+            _ => module
+        };
+    }
+
+    private string GetModuleDescription(string module)
+    {
+        return module switch
+        {
+            "Customer" => "Administración de clientes y sus datos",
+            "Vehicle" => "Gestión del inventario de vehículos",
+            "Rental" => "Control de alquileres y reservas",
+            "Partner" => "Administración de socios del negocio",
+            "FinancialReports" => "Reportes y análisis financieros",
+            "User" => "Gestión de usuarios del sistema",
+            "Audit" => "Registro de actividades y auditoría",
+            "Permission" => "Configuración de permisos y roles",
+            _ => "Módulo del sistema"
+        };
+    }
+
+    private string GetActionDisplayName(string action)
+    {
+        return action switch
+        {
+            "View" => "Ver",
+            "Create" => "Crear",
+            "Edit" => "Editar",
+            "Delete" => "Eliminar",
+            "Export" => "Exportar",
+            "ExportPdf" => "Exportar PDF",
+            "ExportExcel" => "Exportar Excel",
+            "GenerateContract" => "Generar Contrato",
+            "Cancel" => "Cancelar",
+            "Maintenance" => "Mantenimiento",
+            "ViewFinancials" => "Ver Finanzas",
+            "ViewDetailed" => "Ver Detallado",
+            "ResetPassword" => "Resetear Contraseña",
+            "Manage" => "Gestionar",
+            _ => action
+        };
+    }
+
+    private string GetRoleDisplayName(UserRole role)
+    {
+        return role switch
+        {
+            UserRole.Admin => "Administrador",
+            UserRole.Manager => "Gerente",
+            UserRole.Employee => "Empleado",
+            UserRole.ReadOnly => "Solo Lectura",
+            _ => "Desconocido"
+        };
+    }
+
+    private RenderFragment GetModuleIcon(string module) => builder =>
+    {
+        builder.OpenElement(0, "svg");
+        builder.AddAttribute(1, "class", "w-6 h-6");
+        builder.AddAttribute(2, "fill", "none");
+        builder.AddAttribute(3, "stroke", "currentColor");
+        builder.AddAttribute(4, "viewBox", "0 0 24 24");
+
+        var path = module switch
+        {
+            "Customer" => "M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z",
+            "Vehicle" => "M8 7v8a2 2 0 002 2h6M8 7V5a2 2 0 012-2h4.586a1 1 0 01.707.293l4.414 4.414a1 1 0 01.293.707V15a2 2 0 01-2 2h-2M8 7H6a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2v-2",
+            "Rental" => "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4",
+            "Partner" => "M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z",
+            "FinancialReports" => "M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z",
+            "User" => "M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z",
+            "Audit" => "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
+            "Permission" => "M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z",
+            _ => "M4 6h16M4 10h16M4 14h16M4 18h16"
+        };
+
+        builder.OpenElement(5, "path");
+        builder.AddAttribute(6, "stroke-linecap", "round");
+        builder.AddAttribute(7, "stroke-linejoin", "round");
+        builder.AddAttribute(8, "stroke-width", "2");
+        builder.AddAttribute(9, "d", path);
+        builder.CloseElement();
+        builder.CloseElement();
+    };
+
+    private RenderFragment GetActionIcon(string action) => builder =>
+    {
+        builder.OpenElement(0, "svg");
+        builder.AddAttribute(1, "class", "w-4 h-4");
+        builder.AddAttribute(2, "fill", "none");
+        builder.AddAttribute(3, "stroke", "currentColor");
+        builder.AddAttribute(4, "viewBox", "0 0 24 24");
+
+        var path = action switch
+        {
+            "View" => "M15 12a3 3 0 11-6 0 3 3 0 016 0z M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z",
+            "Create" => "M12 4v16m8-8H4",
+            "Edit" => "M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z",
+            "Delete" => "M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16",
+            "Export" => "M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4",
+            "ExportPdf" => "M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z",
+            "ExportExcel" => "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
+            "GenerateContract" => "M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z",
+            "Cancel" => "M6 18L18 6M6 6l12 12",
+            "Maintenance" => "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z",
+            "ViewFinancials" => "M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z",
+            "ViewDetailed" => "M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01",
+            "ResetPassword" => "M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z",
+            "Manage" => "M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z",
+            _ => "M13 10V3L4 14h7v7l9-11h-7z"
+        };
+
+        builder.OpenElement(5, "path");
+        builder.AddAttribute(6, "stroke-linecap", "round");
+        builder.AddAttribute(7, "stroke-linejoin", "round");
+        builder.AddAttribute(8, "stroke-width", "2");
+        builder.AddAttribute(9, "d", path);
+        builder.CloseElement();
+        builder.CloseElement();
+    };
+
+    private class ModuleGroup
+    {
+        public string Module { get; set; }
+        public string ModuleName { get; set; }
+        public int DisplayOrder { get; set; }
+    }
+}

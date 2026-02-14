@@ -1,0 +1,51 @@
+﻿@using CarRental.Web.Services
+@inject IJSRuntime JSRuntime
+@inject NavigationManager NavigationManager
+
+<Router AppAssembly="@typeof(App).Assembly">
+    <Found Context="routeData">
+        <RouteView RouteData="@routeData" DefaultLayout="@typeof(MainLayout)" />
+        <FocusOnNavigate RouteData="@routeData" Selector="h1" />
+    </Found>
+    <NotFound>
+        <PageTitle>No encontrado</PageTitle>
+        <LayoutView Layout="@typeof(EmptyLayout)">
+            <div class="min-h-screen flex items-center justify-center bg-gray-100">
+                <div class="text-center">
+                    <h1 class="text-4xl font-bold text-gray-900 mb-4">404</h1>
+                    <p class="text-gray-600 mb-4">Página no encontrada</p>
+                    <a href="/login" class="text-blue-600 hover:text-blue-800">Ir al Login</a>
+                </div>
+            </div>
+        </LayoutView>
+    </NotFound>
+</Router>
+
+@code {
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                var currentUri = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+
+                // Si estamos en la raíz y no es la página de login
+                if ((string.IsNullOrEmpty(currentUri) || currentUri == "/") && currentUri != "login")
+                {
+                    var token = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "authToken");
+                    if (string.IsNullOrEmpty(token))
+                    {
+                        // No hay token, redirigir inmediatamente al login
+                        NavigationManager.NavigateTo("/login", replace: true);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error en redirección: {ex.Message}");
+                NavigationManager.NavigateTo("/login", replace: true);
+            }
+        }
+    }
+}

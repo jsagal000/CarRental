@@ -1,0 +1,622 @@
+﻿@page "/rentals/details/{Id:int}"
+@inject CarRental.Web.Services.RentalApiClient RentalApiClient
+@inject CarRental.Web.Services.PaymentApiClient PaymentApiClient
+@inject CarRental.Web.Services.PermissionApiClient PermissionApiClient
+@inject NavigationManager NavigationManager
+@inject IToastService ToastService
+@inject IJSRuntime JSRuntime
+@using CarRental.Core.Models
+@using CarRental.Core.Models.Dtos
+@using CarRental.Web.Services
+@using Blazored.Toast.Services
+@using Microsoft.AspNetCore.Components
+
+<div class="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4 font-sans">
+    <div class="max-w-6xl mx-auto animate-in slide-in-from-bottom-4 duration-700">
+
+        <nav class="mb-6">
+            <ol class="flex items-center space-x-2 text-sm text-gray-600">
+                <li><a href="/rentals" class="hover:text-blue-600 transition-colors">Alquileres</a></li>
+                <li><span class="mx-2">›</span></li>
+                <li class="text-gray-900 font-medium">Detalles del Alquiler</li>
+            </ol>
+        </nav>
+
+        <div class="text-center mb-2">
+            <h1 class="text-3xl font-bold text-gray-900">Detalles del Alquiler</h1>
+        </div>
+
+        @if (isLoadingPermissions || isLoading)
+        {
+            <div class="bg-white rounded-2xl shadow-lg p-8">
+                <div class="flex flex-col items-center justify-center space-y-4">
+                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                    <p class="text-gray-600 text-lg">@(isLoadingPermissions ? "Cargando información..." : "Cargando detalles del alquiler...")</p>
+                </div>
+            </div>
+        }
+        else if (!hasModuleAccess || !canView)
+        {
+            <div class="bg-white rounded-2xl shadow-lg p-8">
+                <div class="flex flex-col items-center justify-center space-y-4">
+                    <div class="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center">
+                        <svg class="w-12 h-12 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                    </div>
+                    <div class="text-center">
+                        <h3 class="text-lg font-semibold text-red-800 mb-2">Acceso Denegado</h3>
+                        <p class="text-red-600">No tienes permisos para ver los detalles de alquileres.</p>
+                    </div>
+                    <button @onclick="GoBackToList" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
+                        Volver a la lista
+                    </button>
+                </div>
+            </div>
+        }
+        else if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="bg-white rounded-2xl shadow-lg p-8">
+                <div class="flex flex-col items-center justify-center space-y-4">
+                    <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                        <span class="text-2xl">⚠️</span>
+                    </div>
+                    <div class="text-center">
+                        <h3 class="text-lg font-semibold text-red-800 mb-2">Error al cargar los datos</h3>
+                        <p class="text-red-600">@errorMessage</p>
+                    </div>
+                    <button @onclick="GoBackToList" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
+                        Volver a la lista
+                    </button>
+                </div>
+            </div>
+        }
+        else if (rental != null)
+        {
+            <!-- Información del alquiler -->
+            <div class="bg-white rounded-2xl shadow-lg overflow-hidden mb-6">
+                <div class="px-6 pt-4">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">Detalles del Alquiler</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8">
+                        @DisplayItem("Cliente", $"{rental.Customer?.FirstName} {rental.Customer?.LastName} ({rental.Customer?.DocumentNumber})")
+                        @DisplayItem("Vehículo", $"{rental.Vehicle?.Make} {rental.Vehicle?.Model} ({rental.Vehicle?.LicensePlate})")
+                        @DisplayItem("Fecha/Hora Inicio", rental.StartDate.ToString("dd/MM/yyyy HH:mm"))
+                        @DisplayItem("Fecha/Hora Fin", rental.EndDate.ToString("dd/MM/yyyy HH:mm"))
+                        @DisplayItem("Tarifa Diaria", rental.DailyRate.ToString("C"))
+                        @DisplayItem("Costo Total", rental.TotalCost.ToString("C"))
+                        @DisplayItem("Estado", rental.Status.ToString())
+                        @DisplayItem("Notas", rental.Notes)
+                        @DisplayItem("Fecha de Devolución Real", rental.ActualReturnDate.HasValue ? rental.ActualReturnDate.Value.ToString("dd/MM/yyyy HH:mm") : "Pendiente")
+                        @DisplayItem("Cargos por Retraso", rental.OverdueCharges.ToString("C"))
+                        @DisplayItem("Fecha de Creación", rental.CreatedDate.ToString("dd/MM/yyyy HH:mm"))
+                        @DisplayItem("Tipo de Destino", rental.DestinationType.ToString())
+                        @if (rental.DestinationType != Rental.RentalDestinationType.Local)
+                        {
+                            @DisplayItem("Ciudad de Destino", rental.DestinationCityName)
+                        }
+                        @DisplayItem("Kilometraje Entrega", $"{rental.MileageAtDelivery} km")
+                        @DisplayItem("Kilometraje Recepción", rental.MileageAtReturn.HasValue ? $"{rental.MileageAtReturn.Value} km" : "Pendiente")
+                    </div>
+
+                    <h2 class="text-xl font-semibold text-gray-800 mt-8 mb-4 border-t pt-6">Información del Conductor</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8">
+                        @DisplayItem("Nombre del Conductor", rental.DriverName)
+                        @DisplayItem("Tipo de Licencia", rental.DriverLicenseType.ToString())
+                        @DisplayItem("Fecha Cad. Licencia", rental.DriverLicenseExpirationDate.ToString("dd/MM/yyyy"))
+                    </div>
+                </div>
+
+                <div class="bg-gray-50 px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
+                    <button @onclick="GoBackToList" class="px-6 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors">
+                        Volver a la lista
+                    </button>
+                    @if (canEdit)
+                    {
+                        <a href="/rentals/edit/@rental.Id" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                            Editar Alquiler
+                        </a>
+                    }
+                    <button @onclick="() => GenerateContract(rental.Id)" class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                        Generar Contrato PDF
+                    </button>
+                </div>
+            </div>
+
+            <!-- Sección de Pagos -->
+            <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
+                <div class="bg-gradient-to-r from-green-500 to-green-600 px-6 py-4">
+                    <div class="flex justify-between items-center">
+                        <h2 class="text-xl font-semibold text-white">Pagos del Alquiler</h2>
+                        @if (canEdit && !showAddPayment)
+                        {
+                            <button @onclick="() => showAddPayment = true" class="px-4 py-2 bg-white text-green-600 rounded-lg hover:bg-green-50 transition-colors font-medium">
+                                + Registrar Pago
+                            </button>
+                        }
+                    </div>
+                </div>
+
+                <!-- Resumen de Pagos -->
+                @if (rentalBalance != null)
+                {
+                    <div class="px-6 py-4 bg-green-50 border-b border-green-100">
+                        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                            <div>
+                                <p class="text-sm text-gray-600">Costo Total</p>
+                                <p class="text-lg font-bold text-gray-900">@rentalBalance.TotalCost.ToString("C")</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-600">Total Pagado</p>
+                                <p class="text-lg font-bold text-green-600">@rentalBalance.TotalPaid.ToString("C")</p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-600">Saldo Pendiente</p>
+                                <p class="text-lg font-bold @(rentalBalance.RemainingBalance > 0 ? "text-orange-600" : "text-green-600")">
+                                    @rentalBalance.RemainingBalance.ToString("C")
+                                </p>
+                            </div>
+                            <div>
+                                <p class="text-sm text-gray-600">Estado</p>
+                                <span class="inline-flex px-3 py-1 text-sm font-semibold rounded-full @(rentalBalance.IsFullyPaid ? "bg-green-100 text-green-800" : "bg-orange-100 text-orange-800")">
+                                    @(rentalBalance.IsFullyPaid ? "Pagado" : "Pendiente")
+                                </span>
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                <!-- Formulario para agregar pago -->
+                @if (showAddPayment)
+                {
+                    <div class="px-6 py-4 bg-blue-50 border-b border-blue-100">
+                        <h3 class="text-lg font-semibold text-gray-800 mb-4">Nuevo Pago</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">
+                                    Monto *
+                                    @if (rentalBalance != null && rentalBalance.RemainingBalance > 0)
+                                    {
+                                        <span class="text-xs text-gray-500">(Máx: @rentalBalance.RemainingBalance.ToString("C"))</span>
+                                    }
+                                </label>
+                                <input type="number" step="0.01" @bind="newPayment.Amount" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="0.00" />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Fecha de Pago *</label>
+                                <input type="datetime-local" @bind="newPayment.PaymentDate" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Método de Pago *</label>
+                                <select @bind="selectedPaymentMethod" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                    @foreach (var method in Enum.GetValues<Payment.PaymentMethod>())
+                                    {
+                                        <option value="@method">@GetPaymentMethodDisplay(method)</option>
+                                    }
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Banco</label>
+                                <input type="text" @bind="newPayment.BankName" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Nombre del banco" />
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Tipo de Cuenta</label>
+                                <select @bind="selectedAccountType" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="">-- Seleccione --</option>
+                                    @foreach (var type in Enum.GetValues<Payment.BankAccountType>())
+                                    {
+                                        <option value="@type">@type.ToString()</option>
+                                    }
+                                </select>
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Número de Cuenta</label>
+                                <input type="text" @bind="newPayment.AccountNumber" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Número de cuenta" />
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Número de Referencia</label>
+                                <input type="text" @bind="newPayment.ReferenceNumber" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Número de transacción/referencia" />
+                            </div>
+                            <div class="md:col-span-2">
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Notas (Opcional)</label>
+                                <textarea @bind="newPayment.Notes" rows="2" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500" placeholder="Notas adicionales"></textarea>
+                            </div>
+                        </div>
+                        <div class="flex justify-end space-x-3 mt-4">
+                            <button @onclick="CancelAddPayment" type="button" class="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors">
+                                Cancelar
+                            </button>
+                            <button @onclick="SavePayment" type="button" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                                Guardar Pago
+                            </button>
+                        </div>
+                    </div>
+                }
+
+                <!-- Lista de pagos -->
+                <div class="px-6 py-4">
+                    @if (payments == null)
+                    {
+                        <div class="text-center py-8">
+                            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto"></div>
+                            <p class="text-gray-600 mt-2">Cargando pagos...</p>
+                        </div>
+                    }
+                    else if (!payments.Any())
+                    {
+                        <div class="text-center py-8 text-gray-500">
+                            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            <p class="mt-2">No hay pagos registrados</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="overflow-x-auto">
+                            <table class="min-w-full divide-y divide-gray-200">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Fecha</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Monto</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Método</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Banco</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Referencia</th>
+                                        <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Registrado Por</th>
+                                        <th class="px-4 py-3 text-center text-xs font-medium text-gray-500 uppercase">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="bg-white divide-y divide-gray-200">
+                                    @foreach (var payment in payments)
+                                    {
+                                        <tr class="hover:bg-gray-50 transition-colors">
+                                            <td class="px-4 py-3 text-sm text-gray-900">@payment.PaymentDate.ToString("dd/MM/yyyy HH:mm")</td>
+                                            <td class="px-4 py-3 text-sm font-semibold text-green-600">@payment.Amount.ToString("C")</td>
+                                            <td class="px-4 py-3 text-sm text-gray-900">@GetPaymentMethodDisplay(payment.Method)</td>
+                                            <td class="px-4 py-3 text-sm text-gray-900">@(payment.BankName ?? "-")</td>
+                                            <td class="px-4 py-3 text-sm text-gray-600 font-mono">@(payment.ReferenceNumber ?? "-")</td>
+                                            <td class="px-4 py-3 text-sm text-gray-600">@(payment.CreatedBy ?? "Sistema")</td>
+                                            <td class="px-4 py-3">
+                                                <div class="flex justify-center space-x-2">
+                                                    @* Botón Ver *@
+                                                    <a href="/payments/details/@payment.Id"
+                                                       class="p-2 bg-blue-100 text-blue-600 hover:bg-blue-200 rounded-full"
+                                                       title="Ver detalles">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                        </svg>
+                                                    </a>
+
+                                                    @if (canDelete)
+                                                    {
+                                                        <button @onclick="() => ConfirmDeletePayment(payment.Id)"
+                                                                class="p-2 bg-red-100 text-red-600 hover:bg-red-200 rounded-full"
+                                                                title="Eliminar">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                            </svg>
+                                                        </button>
+                                                    }
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private Rental rental;
+    private string errorMessage = string.Empty;
+    private bool isLoading = true;
+    private bool isLoadingPermissions = true;
+
+    private bool hasModuleAccess = false;
+    private bool canView = false;
+    private bool canEdit = false;
+    private bool canDelete = false;
+
+    // Pagos
+    private List<Payment> payments = new();
+    private RentalBalance rentalBalance;
+    private bool showAddPayment = false;
+    private PaymentForCreationDto newPayment = new PaymentForCreationDto
+    {
+        PaymentDate = DateTime.Now,
+        Method = Payment.PaymentMethod.Efectivo
+    };
+
+    // ✅ Variables auxiliares para los enums
+    private Payment.PaymentMethod selectedPaymentMethod = Payment.PaymentMethod.Efectivo;
+    private string selectedAccountType = "";
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPermissions();
+
+        if (hasModuleAccess && canView)
+        {
+            await LoadRentalData();
+            await LoadPayments();
+            await LoadBalance();
+        }
+
+        isLoadingPermissions = false;
+    }
+
+    private async Task LoadPermissions()
+    {
+        try
+        {
+            var moduleAccessResult = await PermissionApiClient.HasPermissionAsync("Rental", "Access");
+            hasModuleAccess = moduleAccessResult.IsSuccess && moduleAccessResult.Data;
+
+            if (!hasModuleAccess) return;
+
+            var viewResult = await PermissionApiClient.HasPermissionAsync("Rental", "View");
+            canView = viewResult.IsSuccess && viewResult.Data;
+
+            var editResult = await PermissionApiClient.HasPermissionAsync("Rental", "Edit");
+            canEdit = editResult.IsSuccess && editResult.Data;
+
+            var deleteResult = await PermissionApiClient.HasPermissionAsync("Rental", "Delete");
+            canDelete = deleteResult.IsSuccess && deleteResult.Data;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar permisos: {ex.Message}");
+            hasModuleAccess = false;
+        }
+    }
+
+    private async Task LoadRentalData()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = string.Empty;
+
+            if (Id <= 0)
+            {
+                errorMessage = "ID de alquiler no válido.";
+                ToastService.ShowError(errorMessage);
+                NavigationManager.NavigateTo("/rentals");
+                return;
+            }
+
+            var result = await RentalApiClient.GetRentalByIdAsync(Id);
+
+            if (result.IsSuccess && result.Data != null)
+            {
+                rental = result.Data;
+            }
+            else
+            {
+                errorMessage = $"Error al cargar los detalles del alquiler: {result.ErrorMessage ?? "Alquiler no encontrado"}";
+                ToastService.ShowError(errorMessage);
+                await Task.Delay(2000);
+                NavigationManager.NavigateTo("/rentals");
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error inesperado: {ex.Message}";
+            ToastService.ShowError(errorMessage);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private async Task LoadPayments()
+    {
+        try
+        {
+            var result = await PaymentApiClient.GetPaymentsByRentalAsync(Id);
+
+            if (result.IsSuccess && result.Data != null)
+            {
+                payments = result.Data.ToList();
+            }
+            else
+            {
+                payments = new List<Payment>();
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar pagos: {ex.Message}");
+            payments = new List<Payment>();
+        }
+    }
+
+    private async Task LoadBalance()
+    {
+        try
+        {
+            var result = await PaymentApiClient.GetRentalBalanceAsync(Id);
+
+            if (result.IsSuccess && result.Data != null)
+            {
+                rentalBalance = result.Data;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar saldo: {ex.Message}");
+        }
+    }
+
+    private void CancelAddPayment()
+    {
+        showAddPayment = false;
+        selectedPaymentMethod = Payment.PaymentMethod.Efectivo;
+        selectedAccountType = "";
+        newPayment = new PaymentForCreationDto
+        {
+            RentalId = Id,
+            PaymentDate = DateTime.Now,
+            Method = Payment.PaymentMethod.Efectivo
+        };
+    }
+
+    private async Task SavePayment()
+    {
+        if (newPayment.Amount <= 0)
+        {
+            ToastService.ShowError("El monto debe ser mayor que cero");
+            return;
+        }
+
+        // Validación: no exceder el saldo pendiente
+        if (rentalBalance != null && newPayment.Amount > rentalBalance.RemainingBalance)
+        {
+            ToastService.ShowError(
+                $"El monto (${newPayment.Amount:N2}) excede el saldo pendiente (${rentalBalance.RemainingBalance:N2}). " +
+                $"No se puede registrar el pago."
+            );
+            return;
+        }
+
+        try
+        {
+            // ✅ Asignar valores de los enums seleccionados
+            newPayment.Method = selectedPaymentMethod;
+
+            if (!string.IsNullOrEmpty(selectedAccountType))
+            {
+                newPayment.AccountType = Enum.Parse<Payment.BankAccountType>(selectedAccountType);
+            }
+            else
+            {
+                newPayment.AccountType = null;
+            }
+
+            newPayment.RentalId = Id;
+
+            var result = await PaymentApiClient.CreatePaymentAsync(newPayment);
+
+            if (result.IsSuccess)
+            {
+                ToastService.ShowSuccess("Pago registrado exitosamente");
+                showAddPayment = false;
+                selectedPaymentMethod = Payment.PaymentMethod.Efectivo;
+                selectedAccountType = "";
+                newPayment = new PaymentForCreationDto
+                {
+                    RentalId = Id,
+                    PaymentDate = DateTime.Now,
+                    Method = Payment.PaymentMethod.Efectivo
+                };
+
+                await LoadPayments();
+                await LoadBalance();
+            }
+            else
+            {
+                ToastService.ShowError($"Error: {result.ErrorMessage}");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error: {ex.Message}");
+        }
+    }
+
+    private async Task ConfirmDeletePayment(int paymentId)
+    {
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "¿Estás seguro de que deseas eliminar este pago?");
+
+        if (confirmed)
+        {
+            await DeletePayment(paymentId);
+        }
+    }
+
+    private async Task DeletePayment(int paymentId)
+    {
+        try
+        {
+            var result = await PaymentApiClient.DeletePaymentAsync(paymentId);
+
+            if (result.IsSuccess)
+            {
+                ToastService.ShowSuccess("Pago eliminado exitosamente");
+                await LoadPayments();
+                await LoadBalance();
+            }
+            else
+            {
+                ToastService.ShowError($"Error al eliminar el pago: {result.ErrorMessage}");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error: {ex.Message}");
+        }
+    }
+
+    private string GetPaymentMethodDisplay(Payment.PaymentMethod method)
+    {
+        return method switch
+        {
+            Payment.PaymentMethod.Efectivo => "Efectivo",
+            Payment.PaymentMethod.Transferencia => "Transferencia",
+            Payment.PaymentMethod.Deposito => "Depósito",
+            Payment.PaymentMethod.Cheque => "Cheque",
+            Payment.PaymentMethod.TarjetaCredito => "Tarjeta de Crédito",
+            Payment.PaymentMethod.TarjetaDebito => "Tarjeta de Débito",
+            _ => method.ToString()
+        };
+    }
+
+    private async Task GenerateContract(int rentalId)
+    {
+        ToastService.ShowInfo("Generando contrato PDF...");
+        var result = await RentalApiClient.GenerateRentalContractPdfAsync(rentalId);
+
+        if (result.IsSuccess)
+        {
+            ToastService.ShowSuccess(result.ErrorMessage);
+        }
+        else
+        {
+            ToastService.ShowError($"Error al generar el contrato: {result.ErrorMessage}");
+        }
+    }
+
+    private void GoBackToList()
+    {
+        NavigationManager.NavigateTo("/rentals");
+    }
+
+    RenderFragment DisplayItem(string label, string value, bool isRawHtml = false) => builder =>
+    {
+        builder.OpenElement(0, "div");
+        builder.AddAttribute(1, "class", "space-y-1 pb-3");
+
+        builder.OpenElement(2, "p");
+        builder.AddAttribute(3, "class", "text-sm text-gray-500");
+        builder.AddContent(4, label);
+        builder.CloseElement();
+
+        builder.OpenElement(5, "p");
+        builder.AddAttribute(6, "class", "text-gray-900 font-medium");
+        if (isRawHtml)
+            builder.AddMarkupContent(7, value);
+        else
+            builder.AddContent(7, value);
+        builder.CloseElement();
+        builder.CloseElement();
+    };
+}

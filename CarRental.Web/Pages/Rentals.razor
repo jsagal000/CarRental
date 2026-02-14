@@ -1,0 +1,690 @@
+﻿@page "/rentals"
+@inject CarRental.Web.Services.RentalApiClient RentalApiClient
+@inject CarRental.Web.Services.PermissionApiClient PermissionApiClient
+@inject NavigationManager NavigationManager
+@inject CarRental.Web.Services.ModalService ModalService
+@inject IToastService ToastService
+@using CarRental.Core.Models
+@using Blazored.Toast.Services
+@using System.Linq
+@using System.Timers
+
+<div class="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6">
+    <div class="max-w-6xl mx-auto">
+
+        <!-- Encabezado -->
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold text-gray-800">Gestión de Alquileres</h1>
+            @if (canCreate)
+            {
+                <a href="/rentals/add" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                    + Nuevo Alquiler
+                </a>
+            }
+        </div>
+
+        @if (isLoadingPermissions)
+        {
+            <div class="bg-white p-8 rounded-xl shadow text-center">
+                <div class="flex flex-col items-center justify-center space-y-4">
+                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                    <p class="text-gray-600 text-lg">Cargando información...</p>
+                </div>
+            </div>
+        }
+        else if (!hasModuleAccess)
+        {
+            <div class="bg-white p-8 rounded-xl shadow text-center">
+                <p class="text-gray-800 text-lg">Acceso no autorizado</p>
+                <p class="text-gray-600 text-sm mt-2">No tienes permisos para acceder a este módulo</p>
+            </div>
+        }
+        else if (!canView)
+        {
+            <div class="bg-white p-8 rounded-xl shadow text-center">
+                <p class="text-gray-800 text-lg">Acceso no autorizado</p>
+                <p class="text-gray-600 text-sm mt-2">No tienes permisos para ver la lista de alquileres</p>
+            </div>
+        }
+        else
+        {
+            <!-- Sección de búsqueda y filtros -->
+            @if (canView)
+            {
+                <div class="bg-white rounded-xl shadow-sm p-6 mb-6">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Buscar</label>
+                            <input type="text" @bind="searchCustomer" @bind:event="oninput" @onkeyup="OnSearchChanged"
+                                   placeholder="Cliente, conductor, vehículo"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Fecha Desde</label>
+                            <input type="date" @bind="filterStartDate" @bind:event="onchange"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Fecha Hasta</label>
+                            <input type="date" @bind="filterEndDate" @bind:event="onchange"
+                                   class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                        </div>
+
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-2">Estado</label>
+                            <select @bind="filterStatus" @bind:event="onchange"
+                                    class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                <option value="">Todos los estados</option>
+                                @foreach (var status in Enum.GetValues<Rental.RentalStatus>())
+                                {
+                                    <option value="@status">@status.ToString()</option>
+                                }
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="flex justify-between items-center mt-4">
+                        <div class="text-sm text-gray-600">
+                            Mostrando @GetPagedRentals().Count() de @filteredRentals.Count() alquileres (Total: @(allRentals?.Count() ?? 0))
+                        </div>
+                        <div class="flex space-x-2">
+                            <button @onclick="UpdateStatuses" class="px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors text-sm">
+                                Actualizar Estados
+                            </button>
+                            <button @onclick="ClearFilters" class="px-4 py-2 text-gray-600 hover:text-gray-800 transition-colors">
+                                Limpiar filtros
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <!-- Estado de carga o error -->
+            @if (allRentals == null && string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="bg-white p-6 rounded-xl shadow text-center text-gray-600 text-lg">
+                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                    Cargando...
+                </div>
+            }
+            else if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="bg-white p-6 rounded-xl shadow text-center text-red-600 text-lg">
+                    @errorMessage
+                </div>
+            }
+            else if (allRentals != null && !allRentals.Any())
+            {
+                <div class="bg-white p-6 rounded-xl shadow text-center text-gray-600 text-lg">
+                    No hay alquileres registrados.
+                    @if (canCreate)
+                    {
+                        <div class="mt-4">
+                            <a href="/rentals/add" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                                Crear el primer alquiler
+                            </a>
+                        </div>
+                    }
+                </div>
+            }
+            else if (!filteredRentals.Any())
+            {
+                <div class="bg-white p-6 rounded-xl shadow text-center text-gray-600 text-lg">
+                    No se encontraron alquileres que coincidan con los filtros aplicados.
+                    <div class="mt-4">
+                        <button @onclick="ClearFilters" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                            Limpiar filtros
+                        </button>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <!-- Tabla de alquileres -->
+                <div class="overflow-x-auto">
+                    <table class="min-w-full bg-white rounded-xl shadow overflow-hidden">
+                        <thead class="bg-gray-100 text-gray-600 text-sm uppercase">
+                            <tr>
+                                <th class="px-3 py-2 text-left">Vehículo</th>
+                                <th class="px-3 py-2 text-left">Cliente</th>
+                                <th class="px-3 py-2 text-left">Inicio</th>
+                                <th class="px-3 py-2 text-left">Fin</th>
+                                <th class="px-3 py-2 text-left">Costo</th>
+                                <th class="px-3 py-2 text-left">Estado</th>
+                                <th class="px-3 py-2 text-left">Destino</th>
+                                @if (canView || canEdit || canDelete)
+                                {
+                                    <th class="px-3 py-2 text-center">Acciones</th>
+                                }
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var rental in GetPagedRentals())
+                            {
+                                <tr class="border-t border-gray-100 hover:bg-gray-50">
+                                    <td class="px-3 py-2 text-gray-800">@($"{rental.Vehicle?.Make} {rental.Vehicle?.Model} ({rental.Vehicle?.Year})")</td>
+                                    <td class="px-3 py-2 text-gray-800">@($"{rental.Customer?.FirstName} {rental.Customer?.LastName}")</td>
+                                    <td class="px-3 py-2 text-gray-800">@rental.StartDate.ToString("yyyy-MM-dd HH:mm")</td>
+                                    <td class="px-3 py-2 text-gray-800">@rental.EndDate.ToString("yyyy-MM-dd HH:mm")</td>
+                                    <td class="px-3 py-2 text-gray-800">@rental.TotalCost.ToString("C")</td>
+                                    <td class="px-3 py-2 text-gray-800">
+                                        <span class="px-2 py-1 text-xs rounded-full @GetStatusClass(rental.Status)">
+                                            @rental.Status.ToString()
+                                        </span>
+                                    </td>
+                                    <td class="px-3 py-2 text-gray-800">@rental.DestinationType.ToString()</td>
+                                    @if (canView || canEdit || canDelete)
+                                    {
+                                        <td class="px-3 py-2 text-center">
+                                            <div class="flex justify-center space-x-2">
+                                                @* Botón Ver *@
+                                                @if (canView)
+                                                {
+                                                    <a href="/rentals/details/@rental.Id"
+                                                       class="p-2 bg-blue-100 text-blue-600 hover:bg-blue-200 rounded-full"
+                                                       title="Ver detalles">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                                                        </svg>
+                                                    </a>
+                                                }
+
+                                                @* Botón Editar - Solo si NO está Finalizado o Cancelado *@
+                                                @if (canEdit && rental.Status != Rental.RentalStatus.Completado && rental.Status != Rental.RentalStatus.Cancelado)
+                                                {
+                                                    <a href="/rentals/edit/@rental.Id"
+                                                       class="p-2 bg-yellow-100 text-yellow-700 hover:bg-yellow-200 rounded-full"
+                                                       title="Editar">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                                        </svg>
+                                                    </a>
+                                                }
+
+                                                @* Botón Finalizar - Solo si está Activo o Vencido *@
+                                                @if (canEdit && CanFinalize(rental))
+                                                {
+                                                    <button @onclick="() => ConfirmFinalize(rental.Id)"
+                                                            class="p-2 bg-green-100 text-green-600 hover:bg-green-200 rounded-full"
+                                                            title="Finalizar alquiler">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                        </svg>
+                                                    </button>
+                                                }
+
+                                                @* Botón Cancelar - Solo si está Activo o Vencido *@
+                                                @if (canEdit && CanCancel(rental))
+                                                {
+                                                    <button @onclick="() => ConfirmCancel(rental.Id)"
+                                                            class="p-2 bg-orange-100 text-orange-600 hover:bg-orange-200 rounded-full"
+                                                            title="Cancelar alquiler">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                                        </svg>
+                                                    </button>
+                                                }
+
+                                                @* Botón Eliminar *@
+                                                @if (canDelete && CanDelete(rental))
+                                                {
+                                                    <button @onclick="() => ConfirmDelete(rental.Id)"
+                                                            class="p-2 bg-red-100 text-red-600 hover:bg-red-200 rounded-full"
+                                                            title="Eliminar">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                        </svg>
+                                                    </button>
+                                                }
+                                            </div>
+                                        </td>
+                                    }
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Paginación -->
+                <div class="flex justify-between items-center mt-6">
+                    <button @onclick="PreviousPage"
+                            disabled="@(currentPage == 1)"
+                            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors">
+                        Anterior
+                    </button>
+                    <span class="text-gray-600">Página @currentPage de @((int)Math.Ceiling(filteredRentals.Count() / (double)pageSize))</span>
+                    <button @onclick="NextPage"
+                            disabled="@(currentPage* pageSize >= filteredRentals.Count())"
+                            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors">
+                        Siguiente
+                    </button>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    private List<Rental> allRentals;
+    private List<Rental> filteredRentals = new();
+    private string errorMessage = string.Empty;
+
+    private bool isLoadingPermissions = true;
+    private bool hasModuleAccess = false;
+    private bool canView = false;
+    private bool canCreate = false;
+    private bool canEdit = false;
+    private bool canDelete = false;
+
+    // Variables privadas para los filtros
+    private string _searchCustomer = string.Empty;
+    private DateTime? _filterStartDate = null;
+    private DateTime? _filterEndDate = null;
+    private string _filterStatus = string.Empty;
+
+    private int currentPage = 1;
+    private const int pageSize = 10;
+
+    private System.Timers.Timer searchTimer;
+
+    // Propiedades públicas con lógica automática de filtrado
+    private string searchCustomer
+    {
+        get => _searchCustomer;
+        set
+        {
+            _searchCustomer = value;
+        }
+    }
+
+    private DateTime? filterStartDate
+    {
+        get => _filterStartDate;
+        set
+        {
+            _filterStartDate = value;
+            currentPage = 1;
+            ApplyFilters();
+        }
+    }
+
+    private DateTime? filterEndDate
+    {
+        get => _filterEndDate;
+        set
+        {
+            _filterEndDate = value;
+            currentPage = 1;
+            ApplyFilters();
+        }
+    }
+
+    private string filterStatus
+    {
+        get => _filterStatus;
+        set
+        {
+            _filterStatus = value;
+            currentPage = 1;
+            ApplyFilters();
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPermissions();
+
+        if (hasModuleAccess && canView)
+        {
+            await LoadRentals();
+        }
+
+        isLoadingPermissions = false;
+    }
+
+    private async Task LoadPermissions()
+    {
+        try
+        {
+            var moduleAccessResult = await PermissionApiClient.HasPermissionAsync("Rental", "Access");
+            hasModuleAccess = moduleAccessResult.IsSuccess && moduleAccessResult.Data;
+
+            if (!hasModuleAccess) return;
+
+            var viewResult = await PermissionApiClient.HasPermissionAsync("Rental", "View");
+            canView = viewResult.IsSuccess && viewResult.Data;
+
+            var createResult = await PermissionApiClient.HasPermissionAsync("Rental", "Create");
+            canCreate = createResult.IsSuccess && createResult.Data;
+
+            var editResult = await PermissionApiClient.HasPermissionAsync("Rental", "Edit");
+            canEdit = editResult.IsSuccess && editResult.Data;
+
+            var deleteResult = await PermissionApiClient.HasPermissionAsync("Rental", "Delete");
+            canDelete = deleteResult.IsSuccess && deleteResult.Data;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar permisos: {ex.Message}");
+            hasModuleAccess = false;
+        }
+    }
+
+    private async Task LoadRentals()
+    {
+        try
+        {
+            // Intentar obtener todos los alquileres
+            // Si GetAllRentalsAsync no existe, usar GetRentalsAsync o similar
+            var result = await RentalApiClient.GetRentalsAsync();
+
+            if (result.IsSuccess && result.Data != null)
+            {
+                allRentals = result.Data.ToList();
+                ApplyFilters();
+            }
+            else
+            {
+                errorMessage = $"Error al cargar alquileres: {result.ErrorMessage ?? "Error desconocido"}";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error al cargar alquileres: {ex.Message}";
+        }
+    }
+
+    private void OnSearchChanged()
+    {
+        searchTimer?.Stop();
+        searchTimer?.Dispose();
+
+        searchTimer = new System.Timers.Timer(300);
+        searchTimer.Elapsed += (sender, e) =>
+        {
+            searchTimer?.Stop();
+            InvokeAsync(() =>
+            {
+                ApplyFilters();
+                StateHasChanged();
+            });
+        };
+        searchTimer.Start();
+    }
+
+    private void ApplyFilters()
+    {
+        if (allRentals == null)
+        {
+            filteredRentals = new List<Rental>();
+            return;
+        }
+
+        var query = allRentals.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(searchCustomer))
+        {
+            var search = searchCustomer.ToLower();
+            query = query.Where(r =>
+                (r.Customer != null && (r.Customer.FirstName.ToLower().Contains(search) ||
+                                       r.Customer.LastName.ToLower().Contains(search) ||
+                                       r.Customer.DocumentNumber.ToLower().Contains(search))) ||
+                (r.Vehicle != null && (r.Vehicle.Make.ToLower().Contains(search) ||
+                                      r.Vehicle.Model.ToLower().Contains(search) ||
+                                      r.Vehicle.LicensePlate.ToLower().Contains(search))) ||
+                (!string.IsNullOrEmpty(r.DriverName) && r.DriverName.ToLower().Contains(search))
+            );
+        }
+
+        if (filterStartDate.HasValue)
+        {
+            query = query.Where(r => r.StartDate.Date >= filterStartDate.Value.Date);
+        }
+
+        if (filterEndDate.HasValue)
+        {
+            query = query.Where(r => r.EndDate.Date <= filterEndDate.Value.Date);
+        }
+
+        if (!string.IsNullOrWhiteSpace(filterStatus))
+        {
+            if (Enum.TryParse<Rental.RentalStatus>(filterStatus, out var status))
+            {
+                query = query.Where(r => r.Status == status);
+            }
+        }
+
+        filteredRentals = query.OrderByDescending(r => r.StartDate).ToList();
+        currentPage = 1;
+    }
+
+    private void ClearFilters()
+    {
+        _searchCustomer = string.Empty;
+        _filterStartDate = null;
+        _filterEndDate = null;
+        _filterStatus = string.Empty;
+        currentPage = 1;
+        ApplyFilters();
+    }
+
+    private IEnumerable<Rental> GetPagedRentals()
+    {
+        return filteredRentals.Skip((currentPage - 1) * pageSize).Take(pageSize);
+    }
+
+    private void PreviousPage()
+    {
+        if (currentPage > 1)
+        {
+            currentPage--;
+            StateHasChanged();
+        }
+    }
+
+    private void NextPage()
+    {
+        if (currentPage * pageSize < filteredRentals.Count())
+        {
+            currentPage++;
+            StateHasChanged();
+        }
+    }
+
+    private bool CanCancel(Rental rental)
+    {
+        // Solo puede cancelar si está Activo o Vencido (NO si ya está Finalizado o Cancelado)
+        return rental.Status == Rental.RentalStatus.Activo ||
+               rental.Status == Rental.RentalStatus.Vencido;
+    }
+
+    private bool CanDelete(Rental rental)
+    {
+        return rental.Status != Rental.RentalStatus.Completado &&
+               rental.ActualReturnDate == null &&
+               (rental.Status == Rental.RentalStatus.Reservado ||
+                rental.Status == Rental.RentalStatus.Activo ||
+                rental.Status == Rental.RentalStatus.Cancelado ||
+                rental.Status == Rental.RentalStatus.Vencido);
+    }
+
+    private bool CanFinalize(Rental rental)
+    {
+        // Puede finalizar si está Activo o Vencido (NO si ya está Finalizado o Cancelado)
+        return (rental.Status == Rental.RentalStatus.Activo ||
+                rental.Status == Rental.RentalStatus.Vencido) &&
+               rental.ActualReturnDate == null;
+    }
+
+    private string GetStatusClass(Rental.RentalStatus status)
+    {
+        return status switch
+        {
+            Rental.RentalStatus.Reservado => "bg-blue-100 text-blue-800",
+            Rental.RentalStatus.Activo => "bg-green-100 text-green-800",
+            Rental.RentalStatus.Completado => "bg-gray-100 text-gray-800",
+            Rental.RentalStatus.Vencido => "bg-orange-100 text-orange-800",
+            Rental.RentalStatus.Cancelado => "bg-red-100 text-red-800",
+            Rental.RentalStatus.Dañado => "bg-purple-100 text-purple-800",
+            _ => "bg-gray-100 text-gray-800"
+        };
+    }
+
+    private async Task ConfirmCancel(int rentalId)
+    {
+        if (!canEdit)
+        {
+            ToastService.ShowError("No tienes permisos para cancelar alquileres");
+            return;
+        }
+
+        // Mostrar modal personalizado con opciones
+        var result = await ModalService.ConfirmCancelRentalAsync();
+
+        if (result.Confirmed)
+        {
+            await HandleCancel(rentalId, result.CalculateDays);
+        }
+    }
+
+    private async Task HandleCancel(int rentalId, bool calculateDays)
+    {
+        // Mostrar loading
+        await ModalService.ShowLoadingAsync("Cancelando alquiler...");
+
+        var result = await RentalApiClient.CancelRentalAsync(rentalId, calculateDays);
+
+        // Cerrar loading
+        await ModalService.CloseAsync();
+
+        if (result.IsSuccess)
+        {
+            var message = calculateDays
+                ? $"Alquiler cancelado. Costo calculado: {result.Data.FinalCost:C}"
+                : "Alquiler cancelado sin costo";
+
+            await ModalService.ShowSuccessAsync("Alquiler Cancelado", message);
+            await LoadRentals();
+        }
+        else
+        {
+            await ModalService.ShowErrorAsync("Error al Cancelar", result.ErrorMessage ?? "Ocurrió un error inesperado");
+        }
+    }
+
+    private async Task ConfirmDelete(int rentalId)
+    {
+        if (!canDelete)
+        {
+            ToastService.ShowError("No tienes permisos para eliminar alquileres");
+            return;
+        }
+
+        var rental = allRentals.FirstOrDefault(r => r.Id == rentalId);
+        var rentalInfo = rental != null
+            ? $"el alquiler de {rental.Customer?.FirstName} {rental.Customer?.LastName}"
+            : "este alquiler";
+
+        var confirmed = await ModalService.ConfirmDeleteAsync(rentalInfo);
+
+        if (confirmed)
+        {
+            await HandleDelete(rentalId);
+        }
+    }
+
+    private async Task HandleDelete(int rentalId)
+    {
+        // Mostrar loading
+        await ModalService.ShowLoadingAsync("Eliminando alquiler...");
+
+        var result = await RentalApiClient.DeleteRentalAsync(rentalId);
+
+        // Cerrar loading
+        await ModalService.CloseAsync();
+
+        if (result.IsSuccess)
+        {
+            await ModalService.ShowSuccessAsync("¡Eliminado!", "El alquiler ha sido eliminado exitosamente.");
+            await LoadRentals();
+        }
+        else
+        {
+            await ModalService.ShowErrorAsync("Error al Eliminar", result.ErrorMessage ?? "Ocurrió un error inesperado");
+        }
+    }
+
+    private async Task ConfirmFinalize(int rentalId)
+    {
+        if (!canEdit)
+        {
+            ToastService.ShowError("No tienes permisos para finalizar alquileres");
+            return;
+        }
+
+        // Mostrar modal personalizado
+        var confirmed = await ModalService.ConfirmFinalizeRentalAsync();
+
+        if (confirmed)
+        {
+            await HandleFinalize(rentalId);
+        }
+    }
+
+    private async Task HandleFinalize(int rentalId)
+    {
+        // Mostrar loading
+        await ModalService.ShowLoadingAsync("Finalizando alquiler...");
+
+        var actualReturnDate = DateTime.Now;
+
+        var result = await RentalApiClient.FinalizeRentalAsync(rentalId, actualReturnDate);
+
+        // Cerrar loading
+        await ModalService.CloseAsync();
+
+        if (result.IsSuccess)
+        {
+            await ModalService.ShowSuccessAsync("¡Alquiler Finalizado!", "El alquiler se ha finalizado exitosamente.");
+            await LoadRentals();
+        }
+        else
+        {
+            await ModalService.ShowErrorAsync("Error al Finalizar", result.ErrorMessage ?? "Ocurrió un error inesperado");
+        }
+    }
+
+
+    private async Task UpdateStatuses()
+    {
+        ToastService.ShowInfo("Actualizando estados...");
+
+        try
+        {
+            var result = await RentalApiClient.UpdateRentalStatusesAsync();
+
+            if (result.IsSuccess)
+            {
+                ToastService.ShowSuccess("Estados actualizados correctamente");
+                await LoadRentals();
+            }
+            else
+            {
+                ToastService.ShowError($"Error al actualizar estados: {result.ErrorMessage}");
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error: {ex.Message}");
+        }
+    }
+
+    public void Dispose()
+    {
+        searchTimer?.Dispose();
+    }
+}

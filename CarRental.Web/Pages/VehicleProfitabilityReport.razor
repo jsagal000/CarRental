@@ -1,0 +1,411 @@
+﻿@page "/vehicle-profitability"
+@inject CarRental.Web.Services.RentalApiClient RentalApiClient
+@inject CarRental.Web.Services.VehicleApiClient VehicleApiClient
+@inject CarRental.Web.Services.PartnerApiClient PartnerApiClient
+@inject IToastService ToastService
+@using CarRental.Core.Models
+@using System.Globalization
+@using Blazored.Toast.Services
+
+<div class="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6">
+    <div class="max-w-7xl mx-auto">
+
+        <!-- Encabezado -->
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold text-gray-800">Rentabilidad de Vehículos</h1>
+        </div>
+
+        <!-- Estado de error -->
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="bg-white p-6 rounded-xl shadow text-center text-red-600 text-lg mb-6">
+                @errorMessage
+            </div>
+        }
+
+        <!-- Filtros -->
+        <div class="bg-white p-6 rounded-xl shadow mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                <div class="form-group">
+                    <label for="startDate" class="block text-sm font-medium text-gray-700 mb-2">Fecha de Inicio:</label>
+                    <InputDate id="startDate" @bind-Value="StartDate" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                </div>
+                <div class="form-group">
+                    <label for="endDate" class="block text-sm font-medium text-gray-700 mb-2">Fecha de Fin:</label>
+                    <InputDate id="endDate" @bind-Value="EndDate" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                </div>
+                <div>
+                    <button @onclick="GenerateReport" disabled="@isLoading" class="w-full inline-flex items-center justify-center px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-colors">
+                        @if (isLoading)
+                        {
+                            <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span>Cargando...</span>
+                        }
+                        else
+                        {
+@*                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-2m3 2v-2M9 21H5a2 2 0 01-2-2V7a2 2 0 012 2h14a2 2 0 012 2v12a2 2 0 01-2 2h-4m-6-2H9m7-2h2M9 9h6m-6 4h4"></path>
+                            </svg> *@
+                            <span>Generar Reporte</span>
+                        }
+                    </button>
+                </div>
+                <div>
+                    <button @onclick="ClearReport" disabled="@(isLoading || (profitabilityReport?.Any() != true))" class="w-full inline-flex items-center justify-center px-4 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 disabled:bg-gray-300 transition-colors">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                        <span>Limpiar</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        @if (isLoading)
+        {
+            <div class="bg-white p-6 rounded-xl shadow text-center text-gray-600 text-lg">
+                Generando reporte...
+            </div>
+        }
+        else if (profitabilityReport?.Any() != true && !isLoading)
+        {
+            <div class="bg-white p-6 rounded-xl shadow text-center text-gray-600 text-lg">
+                No hay datos de rentabilidad disponibles. Selecciona un rango de fechas y genera el reporte.
+            </div>
+        }
+        else
+        {
+            <!-- Reporte de Rentabilidad -->
+            @if (profitabilityReport?.Any() == true)
+            {
+                <div class="mb-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center">
+                        <svg class="w-6 h-6 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                        </svg>
+                        Rentabilidad por Vehículo (Período: @StartDate.ToString("dd/MM/yyyy") - @EndDate.ToString("dd/MM/yyyy"))
+                    </h2>
+
+                    <!-- Estadísticas Generales -->
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+                        <div class="bg-white p-4 rounded-xl shadow border-l-4 border-blue-500">
+                            <div class="flex items-center">
+                                <svg class="w-8 h-8 text-blue-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-8m-9 0h2m0 0V9a2 2 0 012-2h2a2 2 0 012 2v12" />
+                                </svg>
+                                <div>
+                                    <p class="text-sm font-medium text-gray-600">Total Vehículos</p>
+                                    <p class="text-2xl font-bold text-blue-600">@profitabilityReport.Count</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl shadow border-l-4 border-green-500">
+                            <div class="flex items-center">
+                                <svg class="w-8 h-8 text-green-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1" />
+                                </svg>
+                                <div>
+                                    <p class="text-sm font-medium text-gray-600">Ingresos Totales</p>
+                                    <p class="text-2xl font-bold text-green-600">@profitabilityReport.Sum(x => x.TotalRevenue).ToString("C", CultureInfo.GetCultureInfo("en-US"))</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl shadow border-l-4 border-yellow-500">
+                            <div class="flex items-center">
+                                <svg class="w-8 h-8 text-yellow-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                <div>
+                                    <p class="text-sm font-medium text-gray-600">Días Totales</p>
+                                    <p class="text-2xl font-bold text-yellow-600">@profitabilityReport.Sum(x => x.DaysRented)</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="bg-white p-4 rounded-xl shadow border-l-4 border-purple-500">
+                            <div class="flex items-center">
+                                <svg class="w-8 h-8 text-purple-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                                </svg>
+                                <div>
+                                    <p class="text-sm font-medium text-gray-600">Promedio Días/Vehículo</p>
+                                    <p class="text-2xl font-bold text-purple-600">@(profitabilityReport.Count > 0 ? ((double)profitabilityReport.Sum(x => x.DaysRented) / profitabilityReport.Count).ToString("0.00") : "0.00")</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white rounded-xl shadow overflow-hidden">
+                            <thead class="bg-gray-100 text-gray-600 text-sm uppercase">
+                                <tr>
+                                    <th class="px-3 py-2 text-left">Vehículo</th>
+                                    <th class="px-3 py-2 text-left">Propiedad</th>
+                                    <th class="px-3 py-2 text-center">Días Alquilado</th>
+                                    <th class="px-3 py-2 text-right">Ingreso Total</th>
+                                    <th class="px-3 py-2 text-left">Visualización de Días</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @{
+                                    var totalDaysAllVehicles = profitabilityReport.Sum(x => x.DaysRented);
+                                }
+
+                                @foreach (var item in profitabilityReport)
+                                {
+                                    <tr class="border-t border-gray-100 hover:bg-gray-50">
+                                        <td class="px-3 py-2 text-gray-800">
+                                            <div class="font-medium">@item.VehicleInfo</div>
+                                            <div class="text-sm text-gray-500">@item.Year - @item.Type</div>
+                                        </td>
+                                        <td class="px-3 py-2">
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium @(item.IsCompanyVehicle ? "bg-blue-100 text-blue-800" : "bg-green-100 text-green-800")">
+                                                @(item.IsCompanyVehicle ? "Empresa" : "Socio")
+                                            </span>
+                                        </td>
+                                        <td class="px-3 py-2 text-center font-semibold text-gray-900">
+                                            @item.DaysRented
+                                        </td>
+                                        <td class="px-3 py-2 text-right font-semibold text-green-600">
+                                            @item.TotalRevenue.ToString("C", CultureInfo.GetCultureInfo("en-US"))
+                                        </td>
+                                        <td class="px-3 py-2">
+                                            <div class="w-full bg-gray-200 rounded-full h-6 overflow-hidden">
+                                                @{
+                                                    var percentage = totalDaysAllVehicles > 0 ? ((double)item.DaysRented / totalDaysAllVehicles * 100) : 0;
+                                                    var barColor = GetBarColor(percentage);
+                                                }
+                                                <div class="@barColor h-full rounded-full transition-all duration-1000 ease-out"
+                                                     style="width: @percentage.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)%;">
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                }
+
+                                <!-- Fila de totales -->
+                                <tr class="bg-gray-100 font-bold border-t-2 border-gray-300">
+                                    <td class="px-3 py-2 font-bold text-gray-900" colspan="2">
+                                        TOTALES
+                                    </td>
+                                    <td class="px-3 py-2 text-center font-bold text-gray-900">
+                                        @profitabilityReport.Sum(x => x.DaysRented)
+                                    </td>
+                                    <td class="px-3 py-2 text-right font-bold text-green-700 text-lg">
+                                        @profitabilityReport.Sum(x => x.TotalRevenue).ToString("C", CultureInfo.GetCultureInfo("en-US"))
+                                    </td>
+                                    <td class="px-3 py-2">
+                                        <div class="w-full bg-gray-400 rounded-full h-6">
+                                            <div class="bg-gray-600 h-full rounded-full" style="width: 100%;"></div>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    // Filtros
+    private DateTime StartDate { get; set; } = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+    private DateTime EndDate { get; set; } = DateTime.Today;
+
+    // Estados
+    private bool isLoading = false;
+    private string errorMessage = string.Empty;
+
+    // Datos del reporte
+    private List<VehicleProfitabilityDto> profitabilityReport;
+
+    // Datos auxiliares
+    private List<Vehicle> vehicles;
+    private List<Partner> partners;
+    private List<Rental> allRentals;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadBasicData();
+    }
+
+    private async Task LoadBasicData()
+    {
+        try
+        {
+            var vehiclesTask = VehicleApiClient.GetVehiclesAsync();
+            var partnersTask = PartnerApiClient.GetPartnersAsync();
+
+            await Task.WhenAll(vehiclesTask, partnersTask);
+
+            vehicles = vehiclesTask.Result.IsSuccess ? vehiclesTask.Result.Data : new List<Vehicle>();
+            partners = partnersTask.Result.IsSuccess ? partnersTask.Result.Data : new List<Partner>();
+
+            Console.WriteLine($"[DEBUG] Loaded {vehicles.Count} vehicles and {partners.Count} partners");
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error al cargar datos básicos: {ex.Message}");
+        }
+    }
+
+    private async Task GenerateReport()
+    {
+        if (StartDate > EndDate)
+        {
+            errorMessage = "La fecha de inicio no puede ser posterior a la fecha de fin.";
+            ToastService.ShowError(errorMessage);
+            return;
+        }
+
+        errorMessage = string.Empty;
+        isLoading = true;
+        profitabilityReport = null;
+
+        try
+        {
+            var allRentalsResult = await RentalApiClient.GetRentalsAsync();
+            if (!allRentalsResult.IsSuccess)
+            {
+                errorMessage = $"Error al obtener alquileres: {allRentalsResult.ErrorMessage}";
+                return;
+            }
+
+            allRentals = allRentalsResult.Data ?? new List<Rental>();
+
+            var relevantRentals = allRentals
+                .Where(r => r.Status == Rental.RentalStatus.Completado || r.Status == Rental.RentalStatus.Activo)
+                .Where(r => DoesRentalIntersectPeriod(r, StartDate, EndDate))
+                .ToList();
+
+            Console.WriteLine($"[DEBUG] Found {relevantRentals.Count} rentals intersecting period {StartDate:yyyy-MM-dd} to {EndDate:yyyy-MM-dd}");
+
+            if (!relevantRentals.Any())
+            {
+                ToastService.ShowInfo("No se encontraron alquileres en el rango de fechas seleccionado.");
+                return;
+            }
+
+            ProcessProfitabilityData(relevantRentals);
+
+            ToastService.ShowSuccess($"Reporte de rentabilidad generado exitosamente. {profitabilityReport.Count} vehículos procesados.");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error inesperado: {ex.Message}";
+            ToastService.ShowError(errorMessage);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ClearReport()
+    {
+        profitabilityReport = null;
+        errorMessage = string.Empty;
+
+        ToastService.ShowInfo("Reporte de rentabilidad limpiado correctamente.");
+        StateHasChanged();
+    }
+
+    private string GetBarColor(double percentage)
+    {
+        return percentage switch
+        {
+            >= 66 => "bg-green-500",     // 66% - 100%: Verde (Alto rendimiento)
+            >= 31 => "bg-yellow-500",    // 31% - 65%: Amarillo (Rendimiento medio)
+            _ => "bg-red-500"            // 0% - 30%: Rojo (Bajo rendimiento)
+        };
+    }
+
+    private bool DoesRentalIntersectPeriod(Rental rental, DateTime periodStart, DateTime periodEnd)
+    {
+        var rentalStart = rental.StartDate.Date;
+        var rentalEnd = (rental.ActualReturnDate?.Date ?? rental.EndDate.Date);
+        return rentalEnd >= periodStart && rentalStart <= periodEnd;
+    }
+
+    private void ProcessProfitabilityData(List<Rental> relevantRentals)
+    {
+        var result = new List<VehicleProfitabilityDto>();
+        var groupedByVehicle = relevantRentals.GroupBy(r => r.VehicleId);
+
+        foreach (var vehicleGroup in groupedByVehicle)
+        {
+            var vehicleId = vehicleGroup.Key;
+            var vehicle = vehicles?.FirstOrDefault(v => v.Id == vehicleId);
+
+            if (vehicle == null)
+            {
+                Console.WriteLine($"[WARNING] Vehicle not found for ID: {vehicleId}");
+                continue;
+            }
+
+            int totalDaysRented = 0;
+            decimal totalRevenue = 0;
+
+            foreach (var rental in vehicleGroup)
+            {
+                var daysInPeriod = CalculateDaysInPeriod(rental, StartDate, EndDate);
+                totalDaysRented += daysInPeriod;
+
+                // Calcular ingreso proporcional para el período
+                var proportionalRevenue = rental.DailyRate * daysInPeriod;
+                totalRevenue += proportionalRevenue;
+            }
+
+            var profitabilityItem = new VehicleProfitabilityDto
+            {
+                VehicleId = vehicleId,
+                VehicleInfo = $"{vehicle.Make} {vehicle.Model} ({vehicle.LicensePlate})",
+                Year = vehicle.Year,
+                Type = vehicle.Type.ToString(),
+                IsCompanyVehicle = vehicle.Ownership == Vehicle.OwnershipType.Empresa,
+                DaysRented = totalDaysRented,
+                TotalRevenue = totalRevenue
+            };
+
+            result.Add(profitabilityItem);
+        }
+
+        // Ordenar por días alquilados de mayor a menor
+        profitabilityReport = result.OrderByDescending(x => x.DaysRented).ToList();
+    }
+
+    private int CalculateDaysInPeriod(Rental rental, DateTime periodStart, DateTime periodEnd)
+    {
+        var rentalStart = rental.StartDate.Date;
+        var rentalEnd = (rental.ActualReturnDate?.Date ?? rental.EndDate.Date);
+
+        var intersectionStart = rentalStart > periodStart ? rentalStart : periodStart;
+        var intersectionEnd = rentalEnd < periodEnd ? rentalEnd : periodEnd;
+
+        if (intersectionStart > intersectionEnd) return 0;
+
+        if (intersectionStart == rentalStart)
+        {
+            return (intersectionEnd - intersectionStart).Days;
+        }
+        else
+        {
+            return (intersectionEnd - intersectionStart).Days + 1;
+        }
+    }
+
+    public class VehicleProfitabilityDto
+    {
+        public int VehicleId { get; set; }
+        public string VehicleInfo { get; set; }
+        public int Year { get; set; }
+        public string Type { get; set; }
+        public bool IsCompanyVehicle { get; set; }
+        public int DaysRented { get; set; }
+        public decimal TotalRevenue { get; set; }
+    }
+}

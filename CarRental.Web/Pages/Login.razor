@@ -1,0 +1,265 @@
+﻿@page "/login"
+@layout EmptyLayout
+@inject CarRental.Web.Services.AuthApiClient AuthApiClient
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+@using CarRental.Core.Models.Dtos
+@using System.ComponentModel.DataAnnotations
+
+<!-- Login mejorado -->
+<div class="min-h-screen d-flex align-items-center justify-content-center" style="background: linear-gradient(135deg, #1e293b 0%, #374151 100%);">
+
+    <!-- Contenedor principal -->
+    <div class="container-fluid">
+        <div class="row justify-content-center">
+            <div class="col-11 col-sm-10 col-md-8 col-lg-6 col-xl-4">
+
+                <!-- Tarjeta de login -->
+                <div class="card shadow-lg border-0" style="background: rgba(255, 255, 255, 0.95); border-radius: 15px;">
+                    <div class="card-body p-4 p-md-5">
+
+                        <!-- Header -->
+                        <div class="text-center mb-4">
+                            <!-- Logo - Icono de Usuario -->
+                            <div class="d-inline-flex align-items-center justify-content-center mb-3 p-3 rounded-circle"
+                                 style="background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%); width: 70px; height: 70px;">
+                                <svg width="32" height="32" fill="none" stroke="currentColor" stroke-width="2" class="text-white" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                </svg>
+                            </div>
+
+                            <!-- Título -->
+                            <h2 class="fw-bold text-dark mb-2">CarRental System</h2>
+                            <p class="text-muted small">Acceso al panel de administración</p>
+                        </div>
+
+                        <!-- Formulario -->
+                        <EditForm Model="loginModel" OnValidSubmit="HandleLogin">
+                            <DataAnnotationsValidator />
+
+                            <!-- Campo Usuario -->
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold text-dark">Usuario</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light border-end-0">
+                                        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+                                        </svg>
+                                    </span>
+                                    <InputText @bind-Value="loginModel.Username"
+                                               class="form-control border-start-0 ps-0"
+                                               placeholder="Ingresa tu usuario"
+                                               disabled="@isLoading" />
+                                </div>
+                                <ValidationMessage For="@(() => loginModel.Username)" class="text-danger small mt-1" />
+                            </div>
+
+                            <!-- Campo Contraseña -->
+                            <div class="mb-3">
+                                <label class="form-label fw-semibold text-dark">Contraseña</label>
+                                <div class="input-group">
+                                    <span class="input-group-text bg-light border-end-0">
+                                        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path>
+                                        </svg>
+                                    </span>
+                                    <InputText @bind-Value="loginModel.Password"
+                                               type="password"
+                                               class="form-control border-start-0 ps-0"
+                                               placeholder="Ingresa tu contraseña"
+                                               disabled="@isLoading" />
+                                </div>
+                                <ValidationMessage For="@(() => loginModel.Password)" class="text-danger small mt-1" />
+                            </div>
+
+                            <!-- Recordar sesión y recuperar contraseña -->
+                            <div class="mb-4 d-flex justify-content-between align-items-center">
+                                <div class="form-check">
+                                    <input class="form-check-input"
+                                           type="checkbox"
+                                           id="rememberMe"
+                                           @bind="rememberMe"
+                                           disabled="@isLoading">
+                                    <label class="form-check-label text-muted small" for="rememberMe">
+                                        Recordar mi sesión
+                                    </label>
+                                </div>
+                                <a href="#" class="text-decoration-none small" style="color: #3b82f6;" @onclick:preventDefault @onclick="ShowForgotPassword">
+                                    ¿Olvidaste tu contraseña?
+                                </a>
+                            </div>
+
+                            <!-- Mensaje de error -->
+                            @if (!string.IsNullOrEmpty(errorMessage))
+                            {
+                                <div class="alert alert-danger d-flex align-items-center mb-3" role="alert">
+                                    <svg width="16" height="16" fill="currentColor" class="me-2" viewBox="0 0 16 16">
+                                        <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM5.354 4.646a.5.5 0 1 0-.708.708L7.293 8l-2.647 2.646a.5.5 0 0 0 .708.708L8 8.707l2.646 2.647a.5.5 0 0 0 .708-.708L8.707 8l2.647-2.646a.5.5 0 0 0-.708-.708L8 7.293 5.354 4.646z" />
+                                    </svg>
+                                    <small>@errorMessage</small>
+                                </div>
+                            }
+
+                            <!-- Mensaje de información para contraseña olvidada -->
+                            @if (showForgotPasswordMessage)
+                            {
+                                <div class="alert alert-info d-flex align-items-start mb-3" role="alert">
+                                    <svg width="16" height="16" fill="currentColor" class="me-2 mt-1 flex-shrink-0" viewBox="0 0 16 16">
+                                        <path d="M8 16A8 8 0 1 0 8 0a8 8 0 0 0 0 16zm.93-9.412-1 4.705c-.07.34.029.533.304.533.194 0 .487-.07.686-.246l-.088.416c-.287.346-.92.598-1.465.598-.703 0-1.002-.422-.808-1.319l.738-3.468c.064-.293.006-.399-.287-.47l-.451-.081.082-.381 2.29-.287zM8 5.5a1 1 0 1 1 0-2 1 1 0 0 1 0 2z" />
+                                    </svg>
+                                    <small>
+                                        <strong>¿Olvidaste tu contraseña?</strong><br />
+                                        Contacta al administrador del sistema para restablecer tu contraseña.
+                                    </small>
+                                </div>
+                            }
+
+                            <!-- Botón de login -->
+                            <div class="d-grid">
+                                <button type="submit"
+                                        class="btn btn-lg fw-semibold"
+                                        style="background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%); border: none; color: white; border-radius: 10px;"
+                                        disabled="@isLoading">
+                                    @if (isLoading)
+                                    {
+                                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                                        <span>Accediendo...</span>
+                                    }
+                                    else
+                                    {
+                                        <span>Iniciar Sesión</span>
+                                    }
+                                </button>
+                            </div>
+                        </EditForm>
+
+                    </div>
+                </div>
+
+                <!-- Copyright -->
+                <div class="text-center mt-4">
+                    <small class="text-white-50">© 2024 CarRental System. Todos los derechos reservados.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private LoginDto loginModel = new();
+    private bool isLoading = false;
+    private string errorMessage = string.Empty;
+    private bool rememberMe = false;
+    private bool showForgotPasswordMessage = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        // Verificar si ya está autenticado
+        var token = await JSRuntime.InvokeAsync<string>("localStorage.getItem", "authToken");
+        if (!string.IsNullOrEmpty(token))
+        {
+            NavigationManager.NavigateTo("/dashboard");
+        }
+    }
+
+    private async Task HandleLogin()
+    {
+        if (isLoading) return;
+
+        errorMessage = string.Empty;
+        showForgotPasswordMessage = false;
+        isLoading = true;
+
+        try
+        {
+            var result = await AuthApiClient.LoginAsync(loginModel);
+
+            if (result.IsSuccess && result.Data != null)
+            {
+                // Guardar token en localStorage
+                await JSRuntime.InvokeVoidAsync("localStorage.setItem", "authToken", result.Data.Token);
+                await JSRuntime.InvokeVoidAsync("localStorage.setItem", "currentUser", System.Text.Json.JsonSerializer.Serialize(result.Data.User));
+
+                // Redirigir al dashboard
+                NavigationManager.NavigateTo("/dashboard", true);
+            }
+            else
+            {
+                // Convertir mensajes de error técnicos a mensajes amigables
+                errorMessage = ConvertirMensajeError(result.ErrorMessage);
+            }
+        }
+        catch (HttpRequestException httpEx)
+        {
+            // Manejar errores HTTP específicos
+            if (httpEx.Message.Contains("401") || httpEx.Message.Contains("Unauthorized"))
+            {
+                errorMessage = "Usuario o contraseña incorrectos. Por favor, verifica tus credenciales.";
+            }
+            else if (httpEx.Message.Contains("404"))
+            {
+                errorMessage = "Servicio no disponible. Contacta al administrador.";
+            }
+            else if (httpEx.Message.Contains("500"))
+            {
+                errorMessage = "Error en el servidor. Intenta nuevamente más tarde.";
+            }
+            else
+            {
+                errorMessage = "No se pudo conectar con el servidor. Verifica tu conexión a internet.";
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = "Ocurrió un error inesperado. Por favor, intenta nuevamente.";
+            Console.WriteLine($"Error de login: {ex.Message}"); // Log para debugging
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private string ConvertirMensajeError(string? mensajeOriginal)
+    {
+        if (string.IsNullOrEmpty(mensajeOriginal))
+            return "Error al iniciar sesión. Por favor, intenta nuevamente.";
+
+        // Convertir mensajes técnicos a mensajes amigables
+        var mensajeLower = mensajeOriginal.ToLower();
+
+        if (mensajeLower.Contains("unauthorized") || mensajeLower.Contains("401"))
+            return "Usuario o contraseña incorrectos. Por favor, verifica tus credenciales.";
+
+        if (mensajeLower.Contains("credenciales inválidas") || mensajeLower.Contains("invalid credentials"))
+            return "Usuario o contraseña incorrectos. Por favor, verifica tus credenciales.";
+
+        if (mensajeLower.Contains("usuario no encontrado") || mensajeLower.Contains("user not found"))
+            return "El usuario ingresado no existe. Verifica tu nombre de usuario.";
+
+        if (mensajeLower.Contains("contraseña") || mensajeLower.Contains("password"))
+            return "La contraseña ingresada es incorrecta. Intenta nuevamente.";
+
+        if (mensajeLower.Contains("bloqueado") || mensajeLower.Contains("locked") || mensajeLower.Contains("blocked"))
+            return "Tu cuenta está bloqueada. Contacta al administrador del sistema.";
+
+        if (mensajeLower.Contains("500") || mensajeLower.Contains("internal server"))
+            return "Error en el servidor. Intenta nuevamente más tarde.";
+
+        if (mensajeLower.Contains("timeout") || mensajeLower.Contains("tiempo"))
+            return "La solicitud tardó demasiado. Verifica tu conexión e intenta nuevamente.";
+
+        // Si no coincide con ningún patrón conocido, devolver el mensaje original
+        // pero sin detalles técnicos si contiene códigos de estado HTTP
+        if (mensajeLower.Contains("statuscode"))
+            return "Error al iniciar sesión. Por favor, verifica tus credenciales.";
+
+        return mensajeOriginal;
+    }
+
+    private void ShowForgotPassword()
+    {
+        showForgotPasswordMessage = !showForgotPasswordMessage;
+        errorMessage = string.Empty;
+    }
+}

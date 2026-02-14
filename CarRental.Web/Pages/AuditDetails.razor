@@ -1,0 +1,348 @@
+﻿@page "/audit/details/{Id:int}"
+@inject CarRental.Web.Services.AuditApiClient AuditApiClient
+@inject CarRental.Web.Services.PermissionApiClient PermissionApiClient
+@inject NavigationManager NavigationManager
+@inject IToastService ToastService
+@using CarRental.Core.Models
+@using CarRental.Core.Models.Dtos
+@using Blazored.Toast.Services
+
+<div class="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4 font-sans">
+    <div class="max-w-5xl mx-auto animate-in slide-in-from-bottom-4 duration-700">
+
+        <nav class="mb-6">
+            <ol class="flex items-center space-x-2 text-sm text-gray-600">
+                <li><a href="/audit" class="hover:text-blue-600 transition-colors">Auditoría</a></li>
+                <li><span class="mx-2">›</span></li>
+                <li class="text-gray-900 font-medium">Detalles del Registro</li>
+            </ol>
+        </nav>
+
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-900">Detalles de Auditoría</h1>
+        </div>
+
+        @if (isLoadingPermissions || isLoading)
+        {
+            <div class="bg-white rounded-2xl shadow-lg p-8">
+                <div class="flex flex-col items-center justify-center space-y-4">
+                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                    <p class="text-gray-600 text-lg">@(isLoadingPermissions ? "Verificando permisos..." : "Cargando detalles...")</p>
+                </div>
+            </div>
+        }
+        else if (!hasModuleAccess)
+        {
+            <div class="bg-white rounded-2xl shadow-lg p-8">
+                <div class="flex flex-col items-center justify-center space-y-4">
+                    <div class="w-20 h-20 bg-red-100 rounded-full flex items-center justify-center">
+                        <svg class="w-12 h-12 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                        </svg>
+                    </div>
+                    <div class="text-center">
+                        <h3 class="text-lg font-semibold text-red-800 mb-2">Acceso Denegado</h3>
+                        <p class="text-red-600">No tienes acceso al módulo de Auditoría.</p>
+                    </div>
+                    <button @onclick="GoBackToList" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
+                        Volver al inicio
+                    </button>
+                </div>
+            </div>
+        }
+        else if (!canView)
+        {
+            <div class="bg-white rounded-2xl shadow-lg p-8">
+                <div class="flex flex-col items-center justify-center space-y-4">
+                    <div class="w-20 h-20 bg-orange-100 rounded-full flex items-center justify-center">
+                        <svg class="w-12 h-12 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                    </div>
+                    <div class="text-center">
+                        <h3 class="text-lg font-semibold text-orange-800 mb-2">Permiso Insuficiente</h3>
+                        <p class="text-orange-600">No tienes permisos para ver los detalles de auditoría.</p>
+                    </div>
+                    <button @onclick="GoBackToList" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
+                        Volver a la lista
+                    </button>
+                </div>
+            </div>
+        }
+        else if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="bg-white rounded-2xl shadow-lg p-8">
+                <div class="flex flex-col items-center justify-center space-y-4">
+                    <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                        <span class="text-2xl">⚠️</span>
+                    </div>
+                    <div class="text-center">
+                        <h3 class="text-lg font-semibold text-red-800 mb-2">Error al cargar los datos</h3>
+                        <p class="text-red-600">@errorMessage</p>
+                    </div>
+                    <button @onclick="GoBackToList" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
+                        Volver a la lista
+                    </button>
+                </div>
+            </div>
+        }
+        else if (auditLog != null)
+        {
+            <div class="bg-white rounded-2xl shadow-lg overflow-hidden space-y-6">
+
+                <!-- Información General -->
+                <div class="px-6 pt-6">
+                    <div class="flex items-center justify-between mb-6">
+                        <h2 class="text-xl font-semibold text-gray-800">Información General</h2>
+                        @if (auditLog.IsSuccess)
+                        {
+                            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">
+                                <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                                </svg>
+                                Exitoso
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">
+                                <svg class="w-4 h-4 mr-1" fill="currentColor" viewBox="0 0 20 20">
+                                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                                </svg>
+                                Error
+                            </span>
+                        }
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8">
+                        @DisplayItem("Fecha y Hora", auditLog.CreatedAt.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss"))
+                        @DisplayItem("Usuario", $"{auditLog.UserFullName} ({auditLog.UserName})")
+                        @DisplayItem("Módulo", GetModuleDisplayName(auditLog.Module))
+                        @DisplayItem("Acción", GetActionDisplayName(auditLog.Action))
+                        @if (auditLog.EntityId.HasValue)
+                        {
+                            @DisplayItem("ID Entidad", auditLog.EntityId.Value.ToString())
+                        }
+                        @if (!string.IsNullOrEmpty(auditLog.EntityName))
+                        {
+                            @DisplayItem("Nombre Entidad", auditLog.EntityName)
+                        }
+                    </div>
+                </div>
+
+                <!-- Descripción -->
+                @if (!string.IsNullOrEmpty(auditLog.Description))
+                {
+                    <div class="px-6 pt-4 border-t border-gray-200">
+                        <h2 class="text-xl font-semibold text-gray-800 mb-4">Descripción</h2>
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <p class="text-gray-800">@auditLog.Description</p>
+                        </div>
+                    </div>
+                }
+
+                <!-- Mensaje de Error -->
+                @if (!string.IsNullOrEmpty(auditLog.ErrorMessage))
+                {
+                    <div class="px-6 pt-4 border-t border-gray-200">
+                        <h2 class="text-xl font-semibold text-red-800 mb-4">Mensaje de Error</h2>
+                        <div class="bg-red-50 rounded-lg p-4 border border-red-200">
+                            <p class="text-red-900 font-mono text-sm">@auditLog.ErrorMessage</p>
+                        </div>
+                    </div>
+                }
+
+                <!-- Valores Anteriores -->
+                @if (!string.IsNullOrEmpty(auditLog.OldValues))
+                {
+                    <div class="px-6 pt-4 border-t border-gray-200">
+                        <h2 class="text-xl font-semibold text-gray-800 mb-4">Valores Anteriores</h2>
+                        <div class="bg-yellow-50 rounded-lg p-4 border border-yellow-200">
+                            <pre class="text-xs text-gray-900 overflow-x-auto whitespace-pre-wrap font-mono">@auditLog.OldValues</pre>
+                        </div>
+                    </div>
+                }
+
+                <!-- Valores Nuevos -->
+                @if (!string.IsNullOrEmpty(auditLog.NewValues))
+                {
+                    <div class="px-6 pt-4 border-t border-gray-200">
+                        <h2 class="text-xl font-semibold text-gray-800 mb-4">Valores Nuevos</h2>
+                        <div class="bg-green-50 rounded-lg p-4 border border-green-200">
+                            <pre class="text-xs text-gray-900 overflow-x-auto whitespace-pre-wrap font-mono">@auditLog.NewValues</pre>
+                        </div>
+                    </div>
+                }
+
+                <!-- Información Técnica -->
+                <div class="px-6 pt-4 border-t border-gray-200">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">Información Técnica</h2>
+                    <div class="grid grid-cols-1 gap-y-6">
+                        @DisplayItem("Dirección IP", auditLog.IpAddress)
+                        @if (!string.IsNullOrEmpty(auditLog.UserAgent))
+                        {
+                            <div class="space-y-1 pb-3">
+                                <p class="text-sm text-gray-500">User Agent</p>
+                                <p class="text-gray-900 font-mono text-xs break-all">@auditLog.UserAgent</p>
+                            </div>
+                        }
+                    </div>
+                </div>
+
+                <!-- Botones -->
+                <div class="bg-gray-50 px-6 py-4 border-t border-gray-200 flex justify-end">
+                    <button @onclick="GoBackToList" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                        Volver a la lista
+                    </button>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+
+    private AuditLogDto auditLog;
+    private string errorMessage = string.Empty;
+    private bool isLoading = true;
+    private bool isLoadingPermissions = true;
+
+    private bool hasModuleAccess = false;
+    private bool canView = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPermissions();
+
+        if (hasModuleAccess && canView)
+        {
+            await LoadAuditLogData();
+        }
+
+        isLoadingPermissions = false;
+    }
+
+    private async Task LoadPermissions()
+    {
+        try
+        {
+            // Verificar acceso al módulo de Auditoría
+            var moduleAccessResult = await PermissionApiClient.HasPermissionAsync("Audit", "Access");
+            hasModuleAccess = moduleAccessResult.IsSuccess && moduleAccessResult.Data;
+
+            if (!hasModuleAccess)
+            {
+                return;
+            }
+
+            // Verificar permiso de vista
+            var viewResult = await PermissionApiClient.HasPermissionAsync("Audit", "View");
+            canView = viewResult.IsSuccess && viewResult.Data;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar permisos: {ex.Message}");
+            hasModuleAccess = false;
+        }
+    }
+
+    private async Task LoadAuditLogData()
+    {
+        try
+        {
+            isLoading = true;
+            errorMessage = string.Empty;
+
+            if (Id <= 0)
+            {
+                errorMessage = "ID de registro no válido.";
+                ToastService.ShowError(errorMessage);
+                NavigationManager.NavigateTo("/audit");
+                return;
+            }
+
+            // Obtener todos los logs y buscar el específico (alternativa hasta crear endpoint específico)
+            var filter = new AuditLogFilterDto { Page = 1, PageSize = 1000 };
+            var result = await AuditApiClient.GetAuditLogsAsync(filter);
+
+            if (result.IsSuccess && result.Data != null)
+            {
+                auditLog = result.Data.Items.FirstOrDefault(a => a.Id == Id);
+
+                if (auditLog == null)
+                {
+                    errorMessage = "Registro de auditoría no encontrado.";
+                    ToastService.ShowError(errorMessage);
+                    await Task.Delay(2000);
+                    NavigationManager.NavigateTo("/audit");
+                }
+            }
+            else
+            {
+                errorMessage = $"Error al cargar el registro: {result.ErrorMessage ?? "Registro no encontrado"}";
+                ToastService.ShowError(errorMessage);
+                await Task.Delay(2000);
+                NavigationManager.NavigateTo("/audit");
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error inesperado: {ex.Message}";
+            ToastService.ShowError(errorMessage);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void GoBackToList()
+    {
+        NavigationManager.NavigateTo("/audit");
+    }
+
+    private string GetModuleDisplayName(string module)
+    {
+        return module switch
+        {
+            "Customer" => "Clientes",
+            "Vehicle" => "Vehículos",
+            "Rental" => "Alquileres",
+            "Partner" => "Socios",
+            "User" => "Usuarios",
+            _ => module
+        };
+    }
+
+    private string GetActionDisplayName(string action)
+    {
+        return action switch
+        {
+            "View" => "Consultar",
+            "Create" => "Crear",
+            "Edit" => "Editar",
+            "Delete" => "Eliminar",
+            _ => action
+        };
+    }
+
+    RenderFragment DisplayItem(string label, string value) => builder =>
+    {
+        builder.OpenElement(0, "div");
+        builder.AddAttribute(1, "class", "space-y-1 pb-3");
+
+        builder.OpenElement(2, "p");
+        builder.AddAttribute(3, "class", "text-sm text-gray-500");
+        builder.AddContent(4, label);
+        builder.CloseElement();
+
+        builder.OpenElement(5, "p");
+        builder.AddAttribute(6, "class", "text-gray-900 font-medium");
+        builder.AddContent(7, value);
+        builder.CloseElement();
+
+        builder.CloseElement();
+    };
+}

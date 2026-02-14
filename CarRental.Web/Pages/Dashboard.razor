@@ -1,0 +1,397 @@
+﻿@page "/dashboard"
+@inject CarRental.Web.Services.DashboardApiClient DashboardApiClient
+@inject CarRental.Web.Services.PermissionApiClient PermissionApiClient
+@inject NavigationManager NavigationManager
+@inject IToastService ToastService
+@using Blazored.Toast.Services
+@using CarRental.Web.Services
+
+<div class="min-h-screen bg-gray-100 p-4 md:p-6">
+    <div class="max-w-7xl mx-auto">
+
+        <!-- Header -->
+        <div class="mb-6">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-800">Dashboard</h1>
+            <p class="text-gray-600 mt-1">@DateTime.Now.ToString("dddd, dd 'de' MMMM 'de' yyyy", new System.Globalization.CultureInfo("es-ES"))</p>
+        </div>
+
+        @if (isLoadingPermissions)
+        {
+            <div class="bg-white p-12 rounded-lg shadow text-center">
+                <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-500 mx-auto mb-4"></div>
+                <p class="text-gray-600 text-lg">Cargando información...</p>
+            </div>
+        }
+        else if (!hasModuleAccess || !canView)
+        {
+            <div class="bg-white p-12 rounded-lg shadow text-center">
+                <svg class="w-20 h-20 text-red-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                </svg>
+                <p class="text-gray-800 text-xl font-semibold mb-2">Acceso no autorizado</p>
+                <p class="text-gray-600">No tienes permisos para acceder al dashboard</p>
+            </div>
+        }
+        else
+        {
+            @if (isLoadingData)
+            {
+                <div class="bg-white p-12 rounded-lg shadow text-center">
+                    <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-500 mx-auto mb-4"></div>
+                    <p class="text-gray-600 text-lg">Cargando datos del dashboard...</p>
+                </div>
+            }
+            else if (!string.IsNullOrEmpty(errorMessage))
+            {
+                <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded">
+                    <div class="flex items-center">
+                        <svg class="w-6 h-6 text-red-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <p class="text-red-800 font-medium">@errorMessage</p>
+                    </div>
+                </div>
+            }
+            else
+            {
+                <!-- Tarjetas de Estadísticas -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
+                    <!-- Vehículos Alquilados -->
+                    <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500 hover:shadow-lg transition-shadow">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-500 text-sm font-medium uppercase mb-1">Alquilados</p>
+                                <p class="text-3xl font-bold text-gray-800">@vehiculosAlquilados.Count</p>
+                                <p class="text-gray-500 text-xs mt-1">En renta actualmente</p>
+                            </div>
+                            <div class="bg-green-100 p-3 rounded-full">
+                                <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Vehículos Disponibles -->
+                    <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500 hover:shadow-lg transition-shadow">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-500 text-sm font-medium uppercase mb-1">Disponibles</p>
+                                <p class="text-3xl font-bold text-gray-800">@vehiculosDisponibles.Count</p>
+                                <p class="text-gray-500 text-xs mt-1">Listos para rentar</p>
+                            </div>
+                            <div class="bg-blue-100 p-3 rounded-full">
+                                <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                                </svg>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Cumpleaños Hoy -->
+                    <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-yellow-500 hover:shadow-lg transition-shadow">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-gray-500 text-sm font-medium uppercase mb-1">Cumpleaños</p>
+                                <p class="text-3xl font-bold text-gray-800">@dashboardData.TodayBirthdays.Count</p>
+                                <p class="text-gray-500 text-xs mt-1">Clientes hoy</p>
+                            </div>
+                            <div class="bg-yellow-100 p-3 rounded-full">
+                                <span class="text-3xl">🎂</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sección Principal: 3 Tablas con ancho completo y altura limitada -->
+                <div class="space-y-6">
+
+                    <!-- Vehículos Alquilados -->
+                    <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                        <div class="bg-green-600 px-6 py-4">
+                            <h2 class="text-xl font-bold text-white flex items-center justify-between">
+                                <span>Vehículos Alquilados</span>
+                                <span class="bg-green-700 px-3 py-1 rounded-full text-sm">@vehiculosAlquilados.Count</span>
+                            </h2>
+                        </div>
+
+                        @if (!vehiculosAlquilados.Any())
+                        {
+                            <div class="p-8 text-center">
+                                <p class="text-gray-500">No hay vehículos alquilados en este momento</p>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="overflow-x-auto overflow-y-auto max-h-96">
+                                <table class="w-full">
+                                    <thead class="bg-gray-50 sticky top-0">
+                                        <tr>
+                                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Vehículo</th>
+                                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Cliente</th>
+                                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Propiedad</th>
+                                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Retorno</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-gray-200">
+                                        @foreach (var vehiculo in vehiculosAlquilados)
+                                        {
+                                            <tr class="hover:bg-green-50 transition-colors">
+                                                <td class="px-6 py-4">
+                                                    <div class="font-semibold text-gray-900">@vehiculo.Make @vehiculo.Model</div>
+                                                    <div class="text-sm text-gray-600">@vehiculo.Year • @vehiculo.LicensePlate</div>
+                                                </td>
+                                                <td class="px-6 py-4">
+                                                    <div class="text-sm font-medium text-gray-900">@vehiculo.CustomerName</div>
+                                                </td>
+                                                <td class="px-6 py-4">
+                                                    @if (vehiculo.Ownership == "Empresa")
+                                                    {
+                                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                                            Empresa
+                                                        </span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                                                            Socio
+                                                        </span>
+                                                    }
+                                                </td>
+                                                <td class="px-6 py-4">
+                                                    <div class="text-sm font-medium text-gray-900">@vehiculo.EndDate?.ToString("dd/MM/yyyy")</div>
+                                                    <div class="text-xs text-gray-500">@vehiculo.EndDate?.ToString("HH:mm")</div>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </div>
+
+                    <!-- Vehículos Disponibles -->
+                    <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                        <div class="bg-blue-600 px-6 py-4">
+                            <h2 class="text-xl font-bold text-white flex items-center justify-between">
+                                <span>Vehículos Disponibles</span>
+                                <span class="bg-blue-700 px-3 py-1 rounded-full text-sm">@vehiculosDisponibles.Count</span>
+                            </h2>
+                        </div>
+
+                        @if (!vehiculosDisponibles.Any())
+                        {
+                            <div class="p-8 text-center">
+                                <p class="text-gray-500">No hay vehículos disponibles en este momento</p>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="overflow-x-auto overflow-y-auto max-h-96">
+                                <table class="w-full">
+                                    <thead class="bg-gray-50 sticky top-0">
+                                        <tr>
+                                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Vehículo</th>
+                                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Año</th>
+                                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Propiedad</th>
+                                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Tarifa/Día</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody class="divide-y divide-gray-200">
+                                        @foreach (var vehiculo in vehiculosDisponibles)
+                                        {
+                                            <tr class="hover:bg-blue-50 transition-colors">
+                                                <td class="px-6 py-4">
+                                                    <div class="font-semibold text-gray-900">@vehiculo.Make @vehiculo.Model</div>
+                                                    <div class="text-sm text-gray-600">@vehiculo.LicensePlate</div>
+                                                </td>
+                                                <td class="px-6 py-4">
+                                                    <span class="text-sm font-medium text-gray-900">@vehiculo.Year</span>
+                                                </td>
+                                                <td class="px-6 py-4">
+                                                    @if (vehiculo.Ownership == "Empresa")
+                                                    {
+                                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                                            Empresa
+                                                        </span>
+                                                    }
+                                                    else
+                                                    {
+                                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                                                            Socio
+                                                        </span>
+                                                    }
+                                                </td>
+                                                <td class="px-6 py-4">
+                                                    <span class="text-base font-bold text-green-600">${@vehiculo.DailyRate.ToString("N2")}</span>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        }
+                    </div>
+
+                    <!-- Cumpleaños Hoy -->
+                    <div class="bg-white rounded-lg shadow-md overflow-hidden">
+                        <div class="bg-yellow-500 px-6 py-4">
+                            <h2 class="text-xl font-bold text-white flex items-center justify-between">
+                                <span class="flex items-center">
+                                    <span class="mr-2">🎂</span>
+                                    Cumpleaños Hoy
+                                </span>
+                                <span class="bg-yellow-600 px-3 py-1 rounded-full text-sm">@dashboardData.TodayBirthdays.Count</span>
+                            </h2>
+                        </div>
+
+                        @if (!dashboardData.TodayBirthdays.Any())
+                        {
+                            <div class="p-8 text-center">
+                                <div class="text-5xl mb-3">🎈</div>
+                                <p class="text-gray-500">No hay cumpleaños hoy</p>
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="overflow-y-auto max-h-96">
+                                <div class="divide-y divide-gray-200">
+                                    @foreach (var customer in dashboardData.TodayBirthdays)
+                                    {
+                                        <div class="p-6 hover:bg-yellow-50 transition-colors">
+                                            <div class="flex items-start justify-between mb-3">
+                                                <div class="flex items-center flex-1">
+                                                    <div class="bg-yellow-100 rounded-full p-3 mr-4 flex-shrink-0">
+                                                        <span class="text-2xl">🎉</span>
+                                                    </div>
+                                                    <div class="flex-1">
+                                                        <h3 class="font-bold text-gray-900 text-lg">@customer.CustomerName</h3>
+                                                        <span class="inline-flex items-center px-3 py-1 rounded-md text-sm font-semibold bg-yellow-100 text-yellow-800 mt-1">
+                                                            @customer.Age años
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            </div>
+
+                                            <div class="ml-16 space-y-2 text-sm text-gray-600">
+                                                <div class="flex items-center">
+                                                    <svg class="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                                    </svg>
+                                                    <span class="font-medium">Año: @customer.BirthYear</span>
+                                                </div>
+                                                <div class="flex items-center">
+                                                    <svg class="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                                                    </svg>
+                                                    <span>@customer.PhoneNumber</span>
+                                                </div>
+                                            </div>
+
+                                            <a href="/customers/details/@customer.CustomerId"
+                                               class="mt-4 block text-center bg-yellow-500 hover:bg-yellow-600 text-white font-medium py-2 px-4 rounded transition-colors text-sm">
+                                                Ver perfil
+                                            </a>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    private DashboardDataDto dashboardData = new();
+    private List<VehicleInfoDto> vehiculosAlquilados = new();
+    private List<VehicleInfoDto> vehiculosDisponibles = new();
+
+    private string errorMessage = string.Empty;
+    private bool isLoadingPermissions = true;
+    private bool isLoadingData = false;
+
+    private bool hasModuleAccess = false;
+    private bool canView = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPermissions();
+
+        if (hasModuleAccess && canView)
+        {
+            await LoadDashboardData();
+        }
+
+        isLoadingPermissions = false;
+    }
+
+    private async Task LoadPermissions()
+    {
+        try
+        {
+            var moduleAccessResult = await PermissionApiClient.HasPermissionAsync("Dashboard", "Access");
+            hasModuleAccess = moduleAccessResult.IsSuccess && moduleAccessResult.Data;
+
+            if (!hasModuleAccess)
+            {
+                return;
+            }
+
+            var viewResult = await PermissionApiClient.HasPermissionAsync("Dashboard", "View");
+            canView = viewResult.IsSuccess && viewResult.Data;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar permisos: {ex.Message}");
+            hasModuleAccess = false;
+        }
+    }
+
+    private async Task LoadDashboardData()
+    {
+        isLoadingData = true;
+        errorMessage = string.Empty;
+
+        try
+        {
+            var dataResult = await DashboardApiClient.GetDashboardDataAsync();
+            if (dataResult.IsSuccess && dataResult.Data != null)
+            {
+                dashboardData = dataResult.Data;
+            }
+            else
+            {
+                errorMessage = $"Error al cargar datos: {dataResult.ErrorMessage}";
+                ToastService.ShowError(errorMessage);
+            }
+
+            var vehiclesResult = await DashboardApiClient.GetVehiclesInfoAsync();
+            if (vehiclesResult.IsSuccess && vehiclesResult.Data != null)
+            {
+                vehiculosAlquilados = vehiclesResult.Data
+                    .Where(v => v.State == "Alquilado")
+                    .OrderBy(v => v.Make)
+                    .ThenBy(v => v.Model)
+                    .ToList();
+
+                vehiculosDisponibles = vehiclesResult.Data
+                    .Where(v => v.State == "Disponible")
+                    .OrderBy(v => v.Make)
+                    .ThenBy(v => v.Model)
+                    .ToList();
+            }
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error inesperado: {ex.Message}";
+            ToastService.ShowError(errorMessage);
+        }
+        finally
+        {
+            isLoadingData = false;
+        }
+    }
+}

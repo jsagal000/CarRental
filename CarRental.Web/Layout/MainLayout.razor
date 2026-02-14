@@ -1,0 +1,208 @@
+﻿@inherits LayoutComponentBase
+@inject AuthStateService AuthState
+@inject AuthApiClient AuthApiClient
+@inject NavigationManager NavigationManager
+@inject IToastService ToastService
+@inject IJSRuntime JSRuntime
+@using CarRental.Web.Services
+@using Blazored.Toast.Services
+@using CarRental.Core.Models
+@implements IDisposable
+
+@if (AuthState.IsAuthenticated)
+{
+    <AuthenticationProvider>
+        <!-- Main page container -->
+        <div class="d-flex min-vh-100">
+            <!-- Sidebar navigation con clase condicional controlada por Blazor -->
+            <div class="sidebar-container @(sidebarCollapsed ? "collapsed" : "") bg-dark text-white d-flex flex-column shadow-sm">
+                <NavMenu OnToggleExpanded="HandleSidebarToggle" IsExpanded="@(!sidebarCollapsed)" />
+            </div>
+
+            <!-- Main content area -->
+            <main class="flex-grow-1 d-flex flex-column">
+                <!-- Top bar moderno -->
+                <header class="modern-header bg-white shadow-sm border-bottom">
+                    <div class="container-fluid px-4 py-3">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <!-- Título de página / breadcrumb (opcional) -->
+                            <div class="page-title">
+                                <h1 class="h5 mb-0 text-dark fw-semibold">@GetPageTitle()</h1>
+                            </div>
+
+                            <!-- User section moderna -->
+                            <div class="user-section d-flex align-items-center gap-3">
+                                <!-- User info con diseño moderno -->
+                                <div class="user-info-card d-flex align-items-center bg-light rounded-pill px-3 py-2">
+                                    <!-- Avatar moderno -->
+                                    <div class="user-avatar-modern">
+                                        <div class="avatar-circle bg-gradient-primary text-white d-flex align-items-center justify-content-center">
+                                            <span class="avatar-text fw-bold">@(AuthState.CurrentUser?.FullName?.Substring(0, 1) ?? "U")</span>
+                                        </div>
+                                        <div class="status-indicator bg-success"></div>
+                                    </div>
+                                    
+                                    <!-- User details -->
+                                    <div class="user-details ms-3">
+                                        <div class="user-name fw-semibold text-dark">@AuthState.CurrentUser?.FullName</div>
+                                        <div class="user-role text-muted small">@GetRoleDisplayName(AuthState.CurrentUser?.Role ?? UserRole.ReadOnly)</div>
+                                    </div>
+                                </div>
+
+                                <!-- Logout button moderno -->
+                                <button @onclick="HandleLogout" 
+                                        class="btn-logout btn btn-outline-danger d-flex align-items-center gap-2 px-3 py-2 rounded-pill border-2">
+                                    <svg class="logout-icon" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
+                                        <path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0v2z"/>
+                                        <path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3z"/>
+                                    </svg>
+                                    <span class="logout-text fw-medium">Cerrar Sesión</span>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </header>
+
+                <!-- Content area con scroll -->
+                <article class="content-area flex-grow-1 p-4 overflow-auto bg-light">
+                    @Body
+                </article>
+            </main>
+        </div>
+
+        <!-- Error UI -->
+        <div id="blazor-error-ui" class="position-fixed bottom-0 start-0 end-0 bg-danger text-white text-center p-3 shadow-lg" style="display: none; z-index: 1050;">
+            <div class="container-fluid d-flex justify-content-between align-items-center">
+                <span>⚠️ Ha ocurrido un error inesperado.</span>
+                <div>
+                    <a href="" class="text-white text-decoration-underline me-3">Recargar</a>
+                    <span class="cursor-pointer" style="cursor: pointer;">✕</span>
+                </div>
+            </div>
+        </div>
+
+        <BlazoredToasts />
+    </AuthenticationProvider>
+}
+else
+{
+    <!-- Pantalla de carga mejorada -->
+    <div class="loading-screen min-vh-100 d-flex align-items-center justify-content-center">
+        <div class="loading-container text-center">
+            <div class="loading-spinner">
+                <div class="spinner-border text-primary mb-4" style="width: 3rem; height: 3rem;" role="status">
+                    <span class="visually-hidden">Cargando...</span>
+                </div>
+            </div>
+            <h4 class="text-white mb-2">CarRental.Web</h4>
+            <p class="text-light">Verificando autenticación...</p>
+        </div>
+    </div>
+}
+
+
+
+@code {
+    private bool sidebarCollapsed = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await AuthState.InitializeAsync();
+        AuthState.OnAuthenticationStateChanged += HandleAuthStateChanged;
+        
+        // Si no está autenticado, redirigir al login
+        if (!AuthState.IsAuthenticated)
+        {
+            NavigationManager.NavigateTo("/login", forceLoad: true);
+        }
+    }
+
+    private void HandleAuthStateChanged()
+    {
+        InvokeAsync(() =>
+        {
+            if (!AuthState.IsAuthenticated)
+            {
+                NavigationManager.NavigateTo("/login", forceLoad: true);
+            }
+            StateHasChanged();
+        });
+    }
+
+    // Método que recibe la notificación del NavMenu
+    private void HandleSidebarToggle(bool isExpanded)
+    {
+        sidebarCollapsed = !isExpanded;
+        StateHasChanged();
+    }
+
+    private async Task HandleLogout()
+    {
+        try
+        {
+            // Limpiar estado local inmediatamente
+            await AuthState.LogoutAsync();
+            
+            // Limpiar localStorage
+            await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "authToken");
+            await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "currentUser");
+            
+            // La redirección se manejará automáticamente por HandleAuthStateChanged
+            ToastService.ShowSuccess("Sesión cerrada exitosamente");
+            
+            // Intentar llamada al API en background
+            _ = Task.Run(async () =>
+            {
+                try
+                {
+                    await AuthApiClient.LogoutAsync();
+                }
+                catch
+                {
+                    // Ignorar errores de la API durante logout
+                }
+            });
+        }
+        catch (Exception ex)
+        {
+            await AuthState.LogoutAsync();
+            await JSRuntime.InvokeVoidAsync("localStorage.clear");
+            ToastService.ShowError($"Sesión cerrada con advertencias: {ex.Message}");
+        }
+    }
+
+    private string GetRoleDisplayName(UserRole role)
+    {
+        return role switch
+        {
+            UserRole.Admin => "Administrador",
+            UserRole.Manager => "Gerente", 
+            UserRole.Employee => "Empleado",
+            UserRole.ReadOnly => "Solo Lectura",
+            _ => "Usuario"
+        };
+    }
+
+    private string GetPageTitle()
+    {
+        var uri = NavigationManager.ToBaseRelativePath(NavigationManager.Uri);
+        return uri switch
+        {
+            "" => "Dashboard",
+            "vehicles" => "Gestión de Vehículos",
+            "rentals" => "Gestión de Alquileres", 
+            "customers" => "Gestión de Clientes",
+            "partners" => "Gestión de Socios",
+            "financial-reports" => "Reportes Financieros",
+            "vehicle-profitability" => "Rentabilidad de Vehículos",
+            "user-management" => "Gestión de Usuarios",
+            "profile" => "Mi Perfil",
+            _ => "CarRental.Web"
+        };
+    }
+
+    public void Dispose()
+    {
+        AuthState.OnAuthenticationStateChanged -= HandleAuthStateChanged;
+    }
+}

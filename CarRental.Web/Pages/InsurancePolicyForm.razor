@@ -1,0 +1,136 @@
+﻿@using CarRental.Core.Models
+@using CarRental.Web.Models
+@using CarRental.Web.Services
+@using Blazored.Toast.Services
+@using System.Text.Json
+@using CarRental.Core.Models.Dtos
+@inject IVehicleSubResourceApiClient<InsurancePolicy, InsurancePolicyForCreationDto> ApiClient
+@inject IToastService ToastService
+@inject IJSRuntime JSRuntime
+
+<div class="p-4">
+    <h3 class="text-2xl font-bold text-gray-800 mb-6">@(Policy.Id == 0 ? "Añadir Nueva Póliza" : "Editar Póliza")</h3>
+
+    <EditForm Model="Policy" OnValidSubmit="HandleSubmit">
+        <DataAnnotationsValidator />
+        
+        <!-- Muestra errores de validación del servidor -->
+        @if (_apiResponse != null && !_apiResponse.IsSuccess)
+        {
+            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+                <strong class="font-bold">¡Error!</strong>
+                <span class="block sm:inline">@_apiResponse.ErrorMessage</span>
+                @if (_apiResponse.ValidationErrors != null)
+                {
+                    <ul class="list-disc ml-5 mt-2">
+                        @foreach (var error in _apiResponse.ValidationErrors.SelectMany(err => err.Value))
+                        {
+                            <li>@error</li>
+                        }
+                    </ul>
+                }
+            </div>
+        }
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Aseguradora:</label>
+                <InputText @bind-Value="Policy.InsurerName" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+                <ValidationMessage For="@(() => Policy.InsurerName)" />
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Tipo de Póliza:</label>
+                <InputText @bind-Value="Policy.PolicyType" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+                <ValidationMessage For="@(() => Policy.PolicyType)" />
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Monto de Cobertura:</label>
+                <InputNumber @bind-Value="Policy.CoverageAmount" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+                <ValidationMessage For="@(() => Policy.CoverageAmount)" />
+            </div>
+             <div>
+                <label class="block text-sm font-medium text-gray-700">Tasa:</label>
+                <InputNumber @bind-Value="Policy.Rate" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+                <ValidationMessage For="@(() => Policy.Rate)" />
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Prima:</label>
+                <InputNumber @bind-Value="Policy.InsurancePremium" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+                <ValidationMessage For="@(() => Policy.InsurancePremium)" />
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Número cuotas:</label>
+                <InputNumber @bind-Value="Policy.NumberOfInstallments" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+                <ValidationMessage For="@(() => Policy.NumberOfInstallments)" />
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">cuota mensual:</label>
+                <InputNumber @bind-Value="Policy.MonthlyInstallment" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+                <ValidationMessage For="@(() => Policy.MonthlyInstallment)" />
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Fecha de Inicio:</label>
+                <InputDate @bind-Value="Policy.StartDate" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+                <ValidationMessage For="@(() => Policy.StartDate)" />
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Fecha de Fin:</label>
+                <InputDate @bind-Value="Policy.EndDate" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+                <ValidationMessage For="@(() => Policy.EndDate)" />
+            </div>
+        </div>
+
+        <div class="flex justify-end space-x-4 pt-6">
+            <button type="button" @onclick="() => OnSaveOrCancel.InvokeAsync()" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-400 transition duration-300 ease-in-out shadow-md font-semibold">Cancelar</button>
+            <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-300 ease-in-out shadow-md font-semibold">Guardar</button>
+        </div>
+    </EditForm>
+</div>
+
+@code {
+
+
+
+    [Parameter] public InsurancePolicy Policy { get; set; }
+    [Parameter] public EventCallback OnSaveOrCancel { get; set; }
+
+    private ApiResponse _apiResponse;
+
+    private async Task HandleSubmit()
+    {
+        // El log de depuración sigue siendo útil
+        var policyAsJson = JsonSerializer.Serialize(Policy);
+
+        var dto = new InsurancePolicyForCreationDto
+        {
+            InsurerName = Policy.InsurerName,
+            PolicyType = Policy.PolicyType,
+            CoverageAmount = Policy.CoverageAmount,
+            Rate = Policy.Rate,
+            InsurancePremium = Policy.InsurancePremium,
+            NumberOfInstallments = Policy.NumberOfInstallments,
+            MonthlyInstallment = Policy.MonthlyInstallment,
+            StartDate = Policy.StartDate,
+            EndDate = Policy.EndDate        
+        };
+        await JSRuntime.InvokeVoidAsync("console.log", "Datos que se enviarán a la API:", policyAsJson);
+
+        if (Policy.Id == 0)
+        {
+            // Para la creación, el mapeo de Blazor -> DTO es automático.
+            _apiResponse = await ApiClient.CreateAsync(Policy.VehicleId, dto);
+        }
+        else
+        {
+            // Para la actualización, es mejor asegurarse de enviar el DTO correcto.
+            // Aunque el serializador a menudo lo maneja bien, esto es más robusto.
+            _apiResponse = await ApiClient.UpdateAsync(Policy.Id, Policy);
+        }
+
+        if (_apiResponse.IsSuccess)
+        {
+            ToastService.ShowSuccess("¡Guardado con éxito!");
+            await OnSaveOrCancel.InvokeAsync();
+        }
+    }
+}

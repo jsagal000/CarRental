@@ -1,0 +1,814 @@
+﻿@page "/rentals/add"
+@page "/rentals/edit/{Id:int}"
+
+@using CarRental.Core.Models
+@using CarRental.Core.Models.Dtos
+@using CarRental.Web.Models
+@using Blazored.Toast.Services
+@using Microsoft.AspNetCore.Components.Forms
+@using System.Net.Http.Headers
+@using System.Globalization
+@using System.ComponentModel.DataAnnotations
+@using System.Linq
+
+@inject CarRental.Web.Services.RentalApiClient RentalApiClient
+@inject CarRental.Web.Services.CustomerApiClient CustomerApiClient
+@inject CarRental.Web.Services.VehicleApiClient VehicleApiClient
+@inject CarRental.Web.Services.PermissionApiClient PermissionApiClient
+@inject NavigationManager NavigationManager
+@inject IToastService ToastService
+@inject HttpClient HttpClient
+
+@if (isLoadingPermissions)
+{
+    <div class="min-h-screen bg-gray-100 p-4 font-sans flex flex-col items-center justify-center">
+        <div class="bg-white p-8 rounded-lg shadow-md text-center">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p class="text-gray-600">Cargando formulario...</p>
+        </div>
+    </div>
+}
+else if (!hasModuleAccess)
+{
+    <div class="min-h-screen bg-gray-100 p-4 font-sans flex flex-col items-center justify-center">
+        <div class="bg-white p-8 rounded-lg shadow-md text-center">
+            <div class="mb-4">
+                <svg class="w-20 h-20 text-red-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+            </div>
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">Acceso Denegado</h2>
+            <p class="text-gray-600 mb-4">No tienes acceso al módulo de Alquileres.</p>
+            <button @onclick="GoBackToList" class="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-300 ease-in-out shadow-md font-semibold">
+                Volver al Inicio
+            </button>
+        </div>
+    </div>
+}
+else if (!hasPermission)
+{
+    <div class="min-h-screen bg-gray-100 p-4 font-sans flex flex-col items-center justify-center">
+        <div class="bg-white p-8 rounded-lg shadow-md text-center">
+            <div class="mb-4">
+                <svg class="w-16 h-16 text-orange-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 18.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                </svg>
+            </div>
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">Permiso Insuficiente</h2>
+            <p class="text-gray-600 mb-4">
+                No tienes permisos para @(_isEditMode ? "editar" : "crear") alquileres.
+            </p>
+            <button @onclick="GoBackToList" class="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-300 ease-in-out shadow-md font-semibold">
+                Volver a la Lista
+            </button>
+        </div>
+    </div>
+}
+else
+{
+    <div class="min-h-screen bg-gray-100 p-4 font-sans flex flex-col items-center">
+        <div class="w-full max-w-2xl bg-white p-6 rounded-lg shadow-md">
+
+            <h3 class="text-3xl font-bold text-center text-gray-800 mb-6">
+                @(_isEditMode ? "Editar Alquiler" : "Agregar Nuevo Alquiler")
+            </h3>
+
+            <EditForm Model="@_rental" OnValidSubmit="HandleSubmit">
+                <DataAnnotationsValidator />
+
+                @if ((_isEditMode && _updateResponse != null && !_updateResponse.IsSuccess) || (!_isEditMode && _createResponse != null && !_createResponse.IsSuccess))
+                {
+                    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                        <strong class="font-bold">Error:</strong>
+                        <span class="block">@(_isEditMode? _updateResponse?.ErrorMessage : _createResponse?.ErrorMessage)</span>
+                    </div>
+                }
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <!-- BÚSQUEDA DE CLIENTE POR CÉDULA -->
+                    <div class="form-group md:col-span-2">
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Buscar Cliente por Cédula/Documento:</label>
+                        <div class="flex gap-2">
+                            <input type="text"
+                                   class="flex-1 p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                   placeholder="Ingrese número de cédula o documento"
+                                   @bind="searchDocumento"
+                                   @bind:event="oninput" />
+                            <button type="button"
+                                    class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
+                                    @onclick="BuscarClientePorDocumento">
+                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path>
+                                </svg>
+                            </button>
+                        </div>
+                        @if (!string.IsNullOrEmpty(mensajeBusqueda))
+                        {
+                            <p class="text-sm mt-1 @(clienteEncontrado ? "text-green-600" : "text-red-600")">@mensajeBusqueda</p>
+                        }
+                    </div>
+
+                    <!-- SELECTOR DE CLIENTE -->
+                    <div class="form-group">
+                        <label for="customerId" class="block text-sm font-medium text-gray-700 mb-1">Cliente:</label>
+                        <InputSelect id="customerId" class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                     @bind-Value="_rental.CustomerId"
+                                     @onchange="OnCustomerChangedAsync">
+                            <option value="0">Seleccione un cliente</option>
+                            @foreach (var c in customers)
+                            {
+                                <option value="@c.Id">@c.FirstName @c.LastName - @c.DocumentNumber</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="@(() => _rental.CustomerId)" class="text-red-500 text-xs mt-1" />
+                    </div>
+
+                    <!-- SELECTOR DE VEHÍCULO (FILTRADO) -->
+                    <div class="form-group">
+                        <label for="vehicleId" class="block text-sm font-medium text-gray-700 mb-1">Vehículo:</label>
+                        <InputSelect id="vehicleId" class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                     @bind-Value="_rental.VehicleId" @bind-Value:after="OnVehicleChangedAsync">
+                            <option value="0">Seleccione un vehículo</option>
+                            @foreach (var v in vehiculosDisponibles)
+                            {
+                                <option value="@v.Id">@v.Make @v.Model - @v.LicensePlate</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="@(() => _rental.VehicleId)" class="text-red-500 text-xs mt-1" />
+                        <p class="text-xs text-gray-500 mt-1">Solo se muestran vehículos disponibles (no alquilados)</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="startDate" class="block text-sm font-medium text-gray-700 mb-1">Fecha Inicio:</label>
+                        <InputDate id="startDate" class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                   @bind-Value="_rental.StartDate" @bind-Value:after="OnDateChangedAsync" />
+                        <ValidationMessage For="@(() => _rental.StartDate)" class="text-red-500 text-xs mt-1" />
+                    </div>
+
+                    <!-- HORA DE ENTREGA MEJORADA -->
+                    @if (!_isEditMode)
+                    {
+                        <div class="form-group">
+                            <label for="startTime" class="block text-sm font-medium text-gray-700 mb-1">Hora de Entrega:</label>
+                            <input type="time"
+                                   id="startTime"
+                                   class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                   value="@startTimeInput"
+                                   @onchange="OnTimeInputChanged" />
+                            @if (!string.IsNullOrEmpty(startTimeInput))
+                            {
+                                <p class="text-xs text-gray-500 mt-1">Hora seleccionada: @startTimeInput</p>
+                            }
+                        </div>
+                    }
+
+                    <div class="form-group">
+                        <label for="endDate" class="block text-sm font-medium text-gray-700 mb-1">Fecha Fin:</label>
+                        <InputDate id="endDate" class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                   @bind-Value="_rental.EndDate" @bind-Value:after="OnDateChangedAsync" />
+                        <ValidationMessage For="@(() => _rental.EndDate)" class="text-red-500 text-xs mt-1" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="rentalDays" class="block text-sm font-medium text-gray-700 mb-1">Número de Días de Alquiler:</label>
+                        <p class="w-full p-3 text-gray-900 bg-gray-50 rounded-md shadow-sm"><strong class="font-bold">@calculatedRentalDays</strong> días</p>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="dailyRate" class="block text-sm font-medium text-gray-700 mb-1">Tarifa Diaria:</label>
+                        <InputNumber id="dailyRate" class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                     @bind-Value="_rental.DailyRate" @bind-Value:after="OnRateChangedAsync" />
+                        <ValidationMessage For="@(() => _rental.DailyRate)" class="text-red-500 text-xs mt-1" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="totalCost" class="block text-sm font-medium text-gray-700 mb-1">Costo Total Estimado:</label>
+                        <p class="w-full p-3 text-gray-900 bg-gray-50 rounded-md shadow-sm"><strong class="font-bold">@formattedCalculatedTotalCost</strong></p>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="destinationType" class="block text-sm font-medium text-gray-700 mb-1">Tipo de Destino:</label>
+                        <InputSelect id="destinationType" class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                     @bind-Value="_rental.DestinationType">
+                            @foreach (var type in Enum.GetValues<Rental.RentalDestinationType>())
+                            {
+                                <option value="@type">@type.ToString()</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="@(() => _rental.DestinationType)" class="text-red-500 text-xs mt-1" />
+                    </div>
+
+                    @if (_rental.DestinationType == Rental.RentalDestinationType.Nacional)
+                    {
+                        <div class="form-group">
+                            <label for="destinationCityName" class="block text-sm font-medium text-gray-700 mb-1">Ciudad de Destino:</label>
+                            <InputText id="destinationCityName" class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                       @bind-Value="FormattedDestinationCityName" />
+                            <ValidationMessage For="@(() => _rental.DestinationCityName)" class="text-red-500 text-xs mt-1" />
+                        </div>
+                    }
+
+                    <div class="form-group">
+                        <label for="mileageAtDelivery" class="block text-sm font-medium text-gray-700 mb-1">Kilometraje Entrega:</label>
+                        <InputNumber id="mileageAtDelivery" class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                     @bind-Value="_rental.MileageAtDelivery" />
+                        <ValidationMessage For="@(() => _rental.MileageAtDelivery)" class="text-red-500 text-xs mt-1" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="notes" class="block text-sm font-medium text-gray-700 mb-1">Notas (Opcional):</label>
+                        <InputTextArea id="notes" class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                       @bind-Value="_rental.Notes" />
+                        <ValidationMessage For="@(() => _rental.Notes)" class="text-red-500 text-xs mt-1" />
+                    </div>
+                </div>
+
+                <!-- SECCIÓN DE CONDUCTOR MEJORADA -->
+                <h4 class="text-2xl font-bold text-gray-800 mt-8 mb-4">Información del Conductor</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+
+                    <!-- SELECTOR: ¿CONDUCTOR ES EL MISMO CLIENTE? -->
+                    <div class="form-group md:col-span-2">
+                        <div class="flex items-center space-x-4">
+                            <label class="flex items-center cursor-pointer">
+                                <input type="radio"
+                                       name="driverOption"
+                                       class="w-4 h-4 text-blue-600"
+                                       checked="@conductorEsMismoCliente"
+                                       @onchange="@(() => CambiarTipoConductor(true))" />
+                                <span class="ml-2 text-sm font-medium text-gray-700">El conductor es el mismo cliente</span>
+                            </label>
+                            <label class="flex items-center cursor-pointer">
+                                <input type="radio"
+                                       name="driverOption"
+                                       class="w-4 h-4 text-blue-600"
+                                       checked="@(!conductorEsMismoCliente)"
+                                       @onchange="@(() => CambiarTipoConductor(false))" />
+                                <span class="ml-2 text-sm font-medium text-gray-700">Otro conductor</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- CAMPO DE CONDUCTOR -->
+                    <div class="form-group">
+                        <label for="driverName" class="block text-sm font-medium text-gray-700 mb-1">Nombre del Conductor:</label>
+                        <InputText id="driverName"
+                                   class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                   @bind-Value="FormattedDriverName"
+                                   disabled="@conductorEsMismoCliente" />
+                        <ValidationMessage For="@(() => _rental.DriverName)" class="text-red-500 text-xs mt-1" />
+                        @if (conductorEsMismoCliente)
+                        {
+                            <p class="text-xs text-gray-500 mt-1">Se llenará automáticamente con el nombre del cliente</p>
+                        }
+                    </div>
+
+                    <div class="form-group">
+                        <label for="driverLicenseType" class="block text-sm font-medium text-gray-700 mb-1">Tipo de Licencia:</label>
+                        <InputSelect id="driverLicenseType" class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                     @bind-Value="_rental.DriverLicenseType">
+                            @foreach (var type in Enum.GetValues<Rental.DriverLicenseCategory>())
+                            {
+                                <option value="@type">@type.ToString()</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="@(() => _rental.DriverLicenseType)" class="text-red-500 text-xs mt-1" />
+                    </div>
+
+                    <div class="form-group">
+                        <label for="driverLicenseExpirationDate" class="block text-sm font-medium text-gray-700 mb-1">Vencimiento Licencia:</label>
+                        <InputDate id="driverLicenseExpirationDate" class="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                   @bind-Value="_rental.DriverLicenseExpirationDate" />
+                        <ValidationMessage For="@(() => _rental.DriverLicenseExpirationDate)" class="text-red-500 text-xs mt-1" />
+                    </div>
+                </div>
+
+                <div class="flex justify-end space-x-4">
+                    <button type="button" class="px-6 py-3 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 transition duration-300 ease-in-out shadow-md font-semibold" @onclick="GoBackToList">Cancelar</button>
+                    <button type="submit" class="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-300 ease-in-out shadow-md font-semibold">
+                        @(_isEditMode ? "Guardar Cambios" : "Guardar Alquiler")
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int? Id { get; set; }
+
+    private Rental _rental = new Rental();
+    private bool isLoadingPermissions = true;
+    private bool hasModuleAccess = false;
+    private bool hasPermission = false;
+
+    private RentalForCreationDto rentalDto = new RentalForCreationDto();
+
+    private ApiResult<Rental> _createResponse;
+    private ApiResult<bool> _updateResponse;
+
+    private IEnumerable<Customer> customers = new List<Customer>();
+    private IEnumerable<Vehicle> vehicles = new List<Vehicle>();
+    private IEnumerable<Vehicle> vehiculosDisponibles = new List<Vehicle>();
+
+    private string errorMessage = string.Empty;
+    private int calculatedRentalDays = 0;
+    private decimal calculatedTotalCost = 0m;
+    private string formattedCalculatedTotalCost = string.Empty;
+
+    // Variables para búsqueda de cliente por documento
+    private string searchDocumento = string.Empty;
+    private string mensajeBusqueda = string.Empty;
+    private bool clienteEncontrado = false;
+
+    // Variables para conductor
+    private bool conductorEsMismoCliente = false;
+    private Customer? clienteSeleccionado = null;
+
+    // Variable para la hora de entrega
+    private string startTimeInput = DateTime.Now.ToString("HH:mm");
+
+    private bool _isEditMode => Id.HasValue;
+
+    private string FormattedDriverName
+    {
+        get => _rental.DriverName ?? "";
+        set => _rental.DriverName = CapitalizeEachWord(value);
+    }
+
+    private string FormattedDestinationCityName
+    {
+        get => _rental.DestinationCityName ?? "";
+        set => _rental.DestinationCityName = CapitalizeEachWord(value);
+    }
+
+    private string CapitalizeEachWord(string input)
+    {
+        if (string.IsNullOrEmpty(input))
+        {
+            return input ?? "";
+        }
+        TextInfo textInfo = new CultureInfo("es-ES", false).TextInfo;
+        return textInfo.ToTitleCase(input.ToLower());
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPermissions();
+
+        if (!hasModuleAccess || !hasPermission)
+        {
+            isLoadingPermissions = false;
+            return;
+        }
+
+        try
+        {
+            var customersResult = await CustomerApiClient.GetAllCustomersAsync();
+            var vehiclesResult = await VehicleApiClient.GetVehiclesAsync();
+
+            customers = customersResult?.Data ?? new List<Customer>();
+            vehicles = vehiclesResult?.Data ?? new List<Vehicle>();
+
+            // FILTRAR VEHÍCULOS: Solo mostrar los que NO están en estado "Alquilado"
+            vehiculosDisponibles = vehicles.Where(v => v.State != Vehicle.VehicleState.Alquilado).ToList();
+
+            if (_isEditMode)
+            {
+                var result = await RentalApiClient.GetRentalByIdAsync(Id.Value);
+                if (result.IsSuccess)
+                {
+                    _rental = result.Data;
+
+                    // En modo edición, permitir ver el vehículo actual aunque esté alquilado
+                    if (!vehiculosDisponibles.Any(v => v.Id == _rental.VehicleId))
+                    {
+                        var vehiculoActual = vehicles.FirstOrDefault(v => v.Id == _rental.VehicleId);
+                        if (vehiculoActual != null)
+                        {
+                            vehiculosDisponibles = vehiculosDisponibles.Append(vehiculoActual).ToList();
+                        }
+                    }
+
+                    SyncRentalToDto();
+
+                    // Detectar si el conductor es el mismo cliente en modo edición
+                    var cliente = customers.FirstOrDefault(c => c.Id == _rental.CustomerId);
+                    if (cliente != null)
+                    {
+                        var nombreCompleto = $"{cliente.FirstName} {cliente.LastName}".Trim();
+                        conductorEsMismoCliente = _rental.DriverName?.Trim().Equals(nombreCompleto, StringComparison.OrdinalIgnoreCase) ?? false;
+                        clienteSeleccionado = cliente;
+                    }
+                }
+                else
+                {
+                    ToastService.ShowError($"Error al cargar el alquiler: {result.ErrorMessage}");
+                    NavigationManager.NavigateTo("/rentals");
+                }
+            }
+            else
+            {
+                // Establecer hora actual del sistema
+                startTimeInput = DateTime.Now.ToString("HH:mm");
+
+                // Inicializar DTO
+                rentalDto = new RentalForCreationDto
+                {
+                    StartTimeInput = startTimeInput,
+                    StartDate = DateTime.Today,
+                    EndDate = DateTime.Today.AddDays(1),
+                    DriverLicenseExpirationDate = DateTime.Today.AddYears(1),
+                    DestinationType = Rental.RentalDestinationType.Local,
+                    DriverLicenseType = Rental.DriverLicenseCategory.B
+                };
+
+                _rental = new Rental
+                {
+                    StartDate = DateTime.Today,
+                    EndDate = DateTime.Today.AddDays(1),
+                    DriverLicenseExpirationDate = DateTime.Today.AddYears(1),
+                    DestinationType = Rental.RentalDestinationType.Local,
+                    DriverLicenseType = Rental.DriverLicenseCategory.B,
+                    DailyRate = 0,
+                    CustomerId = 0,
+                    VehicleId = 0
+                };
+            }
+
+            UpdateCalculations();
+
+            if (!_isEditMode)
+            {
+                _ = Task.Run(async () =>
+                {
+                    await Task.Delay(200);
+                    await InvokeAsync(() =>
+                    {
+                        UpdateCalculations();
+                    });
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error al inicializar: {ex.Message}");
+        }
+
+        isLoadingPermissions = false;
+    }
+
+    private async Task LoadPermissions()
+    {
+        try
+        {
+            var moduleAccessResult = await PermissionApiClient.HasPermissionAsync("Rental", "Access");
+            hasModuleAccess = moduleAccessResult.IsSuccess && moduleAccessResult.Data;
+
+            if (!hasModuleAccess)
+            {
+                return;
+            }
+
+            string requiredAction = _isEditMode ? "Edit" : "Create";
+            var actionResult = await PermissionApiClient.HasPermissionAsync("Rental", requiredAction);
+            hasPermission = actionResult.IsSuccess && actionResult.Data;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al verificar permisos: {ex.Message}");
+            hasModuleAccess = false;
+            hasPermission = false;
+        }
+    }
+
+    // BUSCAR CLIENTE POR DOCUMENTO
+    private void BuscarClientePorDocumento()
+    {
+        mensajeBusqueda = string.Empty;
+        clienteEncontrado = false;
+
+        if (string.IsNullOrWhiteSpace(searchDocumento))
+        {
+            mensajeBusqueda = "Por favor, ingrese un número de documento";
+            return;
+        }
+
+        var cliente = customers.FirstOrDefault(c =>
+            c.DocumentNumber?.Trim().Equals(searchDocumento.Trim(), StringComparison.OrdinalIgnoreCase) == true);
+
+        if (cliente != null)
+        {
+            _rental.CustomerId = cliente.Id;
+            clienteSeleccionado = cliente;
+            clienteEncontrado = true;
+            mensajeBusqueda = $"✓ Cliente encontrado: {cliente.FirstName} {cliente.LastName}";
+
+            // Si el conductor es el mismo cliente, actualizar el nombre
+            if (conductorEsMismoCliente)
+            {
+                ActualizarNombreConductor();
+            }
+
+            StateHasChanged();
+        }
+        else
+        {
+            mensajeBusqueda = "✗ No se encontró ningún cliente con ese documento";
+            _rental.CustomerId = 0;
+            clienteSeleccionado = null;
+        }
+    }
+
+    // CUANDO CAMBIA EL CLIENTE SELECCIONADO
+    private async Task OnCustomerChangedAsync(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value?.ToString(), out int customerId))
+        {
+            _rental.CustomerId = customerId;
+
+            if (_rental.CustomerId > 0)
+            {
+                clienteSeleccionado = customers.FirstOrDefault(c => c.Id == _rental.CustomerId);
+
+                if (conductorEsMismoCliente && clienteSeleccionado != null)
+                {
+                    ActualizarNombreConductor();
+                }
+            }
+            else
+            {
+                clienteSeleccionado = null;
+                if (conductorEsMismoCliente)
+                {
+                    _rental.DriverName = string.Empty;
+                }
+            }
+
+            await Task.CompletedTask;
+        }
+    }
+
+    // CAMBIAR TIPO DE CONDUCTOR
+    private void CambiarTipoConductor(bool esMismoCliente)
+    {
+        conductorEsMismoCliente = esMismoCliente;
+
+        if (esMismoCliente)
+        {
+            ActualizarNombreConductor();
+        }
+        else
+        {
+            // Si selecciona "otro conductor", limpiar el campo para que pueda ingresar manualmente
+            _rental.DriverName = string.Empty;
+        }
+
+        StateHasChanged();
+    }
+
+    // ACTUALIZAR NOMBRE DEL CONDUCTOR CON EL NOMBRE DEL CLIENTE
+    private void ActualizarNombreConductor()
+    {
+        if (clienteSeleccionado != null)
+        {
+            _rental.DriverName = $"{clienteSeleccionado.FirstName} {clienteSeleccionado.LastName}".Trim();
+        }
+        else if (_rental.CustomerId > 0)
+        {
+            var cliente = customers.FirstOrDefault(c => c.Id == _rental.CustomerId);
+            if (cliente != null)
+            {
+                _rental.DriverName = $"{cliente.FirstName} {cliente.LastName}".Trim();
+                clienteSeleccionado = cliente;
+            }
+        }
+    }
+
+    private void SyncRentalToDto()
+    {
+        rentalDto.CustomerId = _rental.CustomerId;
+        rentalDto.VehicleId = _rental.VehicleId;
+        rentalDto.StartDate = _rental.StartDate;
+        rentalDto.EndDate = _rental.EndDate;
+        rentalDto.DailyRate = _rental.DailyRate;
+        rentalDto.DestinationType = _rental.DestinationType;
+        rentalDto.DestinationCityName = _rental.DestinationCityName ?? "";
+        rentalDto.MileageAtDelivery = _rental.MileageAtDelivery;
+        rentalDto.Notes = _rental.Notes ?? "";
+        rentalDto.DriverName = _rental.DriverName ?? "";
+        rentalDto.DriverLicenseType = _rental.DriverLicenseType;
+        rentalDto.DriverLicenseExpirationDate = _rental.DriverLicenseExpirationDate;
+        startTimeInput = _rental.StartDate.ToString("HH:mm");
+        rentalDto.StartTimeInput = startTimeInput;
+    }
+
+    private void UpdateCalculations()
+    {
+        CalculateRentalDays();
+        CalculateTotalCost();
+        InvokeAsync(StateHasChanged);
+    }
+
+    private async Task OnDateChangedAsync()
+    {
+        if (!_isEditMode)
+        {
+            rentalDto.StartDate = _rental.StartDate;
+            rentalDto.EndDate = _rental.EndDate;
+        }
+        await Task.Delay(10);
+        UpdateCalculations();
+    }
+
+    private async Task OnTimeInputChanged(ChangeEventArgs e)
+    {
+        if (e.Value != null)
+        {
+            startTimeInput = e.Value.ToString() ?? DateTime.Now.ToString("HH:mm");
+            if (!_isEditMode)
+            {
+                rentalDto.StartTimeInput = startTimeInput;
+            }
+            await Task.Delay(10);
+            UpdateCalculations();
+        }
+    }
+
+    private async Task OnRateChangedAsync()
+    {
+        if (!_isEditMode)
+        {
+            rentalDto.DailyRate = _rental.DailyRate;
+        }
+        await Task.Delay(10);
+        UpdateCalculations();
+    }
+
+    private async Task OnVehicleChangedAsync()
+    {
+        if (_rental.VehicleId > 0)
+        {
+            var selectedVehicle = vehicles.FirstOrDefault(v => v.Id == _rental.VehicleId);
+            if (selectedVehicle != null)
+            {
+                _rental.DailyRate = selectedVehicle.DailyRate;
+                if (!_isEditMode)
+                {
+                    rentalDto.DailyRate = selectedVehicle.DailyRate;
+                }
+                await Task.Delay(10);
+                UpdateCalculations();
+            }
+        }
+    }
+
+    private void CalculateRentalDays()
+    {
+        try
+        {
+            var startDate = _rental.StartDate;
+            var endDate = _rental.EndDate;
+
+            if (startDate == default || endDate == default || startDate > endDate)
+            {
+                calculatedRentalDays = 0;
+                return;
+            }
+
+            DateTime actualStartDate = startDate.Date;
+            DateTime actualEndDate = endDate.Date;
+
+            if (!_isEditMode && !string.IsNullOrEmpty(startTimeInput))
+            {
+                if (TimeSpan.TryParse(startTimeInput, out TimeSpan startTimeSpan))
+                {
+                    actualStartDate = actualStartDate.Add(startTimeSpan);
+                    actualEndDate = actualEndDate.Add(startTimeSpan);
+                }
+            }
+
+            TimeSpan duration = actualEndDate - actualStartDate;
+            calculatedRentalDays = Math.Max(1, (int)Math.Ceiling(duration.TotalDays));
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ERROR] CalculateRentalDays: {ex.Message}");
+            calculatedRentalDays = 1;
+        }
+    }
+
+    private void CalculateTotalCost()
+    {
+        try
+        {
+            var dailyRate = _rental.DailyRate;
+
+            if (calculatedRentalDays > 0 && dailyRate > 0)
+            {
+                calculatedTotalCost = calculatedRentalDays * dailyRate;
+            }
+            else
+            {
+                calculatedTotalCost = 0m;
+            }
+
+            formattedCalculatedTotalCost = calculatedTotalCost.ToString("C", CultureInfo.CurrentCulture);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[ERROR] CalculateTotalCost: {ex.Message}");
+            calculatedTotalCost = 0m;
+            formattedCalculatedTotalCost = "$0.00";
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (_rental.CustomerId == 0 || _rental.VehicleId == 0)
+        {
+            ToastService.ShowError("Debe seleccionar cliente y vehículo");
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(_rental.DriverName))
+        {
+            ToastService.ShowError("Debe ingresar el nombre del conductor");
+            return;
+        }
+
+        try
+        {
+            if (_isEditMode)
+            {
+                var updateDto = new RentalForUpdateDto
+                {
+                    Id = _rental.Id,
+                    CustomerId = _rental.CustomerId,
+                    VehicleId = _rental.VehicleId,
+                    StartDate = _rental.StartDate,
+                    EndDate = _rental.EndDate,
+                    DailyRate = _rental.DailyRate,
+                    DestinationType = _rental.DestinationType,
+                    DestinationCityName = CapitalizeEachWord(_rental.DestinationCityName),
+                    MileageAtDelivery = _rental.MileageAtDelivery,
+                    Notes = string.IsNullOrWhiteSpace(_rental.Notes) ? "Sin notas adicionales" : _rental.Notes,
+                    DriverName = CapitalizeEachWord(_rental.DriverName),
+                    DriverLicenseType = _rental.DriverLicenseType,
+                    DriverLicenseExpirationDate = _rental.DriverLicenseExpirationDate,
+                    TotalCost = calculatedTotalCost
+                };
+
+                _updateResponse = await RentalApiClient.UpdateRentalAsync(updateDto);
+                if (_updateResponse.IsSuccess)
+                {
+                    ToastService.ShowSuccess("Alquiler actualizado con éxito.");
+                    NavigationManager.NavigateTo("/rentals");
+                }
+                else
+                {
+                    ToastService.ShowError(_updateResponse.ErrorMessage);
+                }
+            }
+            else
+            {
+                var dto = new RentalForCreationDto
+                {
+                    CustomerId = _rental.CustomerId,
+                    VehicleId = _rental.VehicleId,
+                    StartDate = _rental.StartDate,
+                    EndDate = _rental.EndDate,
+                    StartTimeInput = startTimeInput ?? DateTime.Now.ToString("HH:mm"),
+                    DailyRate = _rental.DailyRate,
+                    DestinationType = _rental.DestinationType,
+                    DestinationCityName = CapitalizeEachWord(_rental.DestinationCityName ?? ""),
+                    MileageAtDelivery = _rental.MileageAtDelivery,
+                    Notes = string.IsNullOrWhiteSpace(_rental.Notes) ? "Sin notas adicionales" : _rental.Notes,
+                    DriverName = CapitalizeEachWord(_rental.DriverName ?? ""),
+                    DriverLicenseType = _rental.DriverLicenseType,
+                    DriverLicenseExpirationDate = _rental.DriverLicenseExpirationDate
+                };
+
+                _createResponse = await RentalApiClient.AddRentalAsync(dto);
+                if (_createResponse.IsSuccess)
+                {
+                    ToastService.ShowSuccess("Alquiler creado con éxito.");
+                    NavigationManager.NavigateTo("/rentals");
+                }
+                else
+                {
+                    ToastService.ShowError(_createResponse.ErrorMessage);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error inesperado: {ex.Message}");
+        }
+    }
+
+    private void GoBackToList()
+    {
+        NavigationManager.NavigateTo("/rentals");
+    }
+}

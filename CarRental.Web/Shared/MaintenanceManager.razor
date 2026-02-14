@@ -1,0 +1,103 @@
+﻿@using CarRental.Core.Models
+@using CarRental.Web.Services
+@using Blazored.Toast.Services
+@using CarRental.Core.Models.Dtos
+@inject IVehicleSubResourceApiClient<Maintenance, MaintenanceForCreationDto> ApiClient
+@inject IToastService ToastService
+@inject IJSRuntime JSRuntime
+
+<div class="p-4">
+    <div class="flex justify-between items-center mb-6">
+        <h3 class="text-2xl font-bold text-gray-800">Mantenimientos</h3>
+        <button @onclick="() => OnAddRequest.InvokeAsync()" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+            + Nuevo Mantenimiento
+        </button>
+    </div>
+
+    @if (_isLoading)
+    {
+        <p class="text-center text-gray-500">Cargando...</p>
+    }
+    else if (_maintenances == null || !_maintenances.Any())
+    {
+
+        <p class="text-center text-gray-500">No hay registros.</p>
+    }
+    else
+    {
+        <div class="overflow-x-auto">
+            <table class="min-w-full bg-white rounded-xl shadow-md overflow-hidden">
+                <thead class="bg-gray-100 text-gray-600 text-sm uppercase">
+                    <tr>
+                        <th class="px-4 py-3 text-left">Fecha</th>
+                        <th class="px-4 py-3 text-left">Descripción</th>
+                        <th class="px-4 py-3 text-left">Costo</th>
+                        <th class="px-4 py-3 text-left">Taller</th>
+                        <th class="px-4 py-3 text-left">Kilometraje</th>
+                        <th class="px-4 py-3 text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-200">
+                    @foreach (var item in _maintenances)
+                    {
+                        <tr class="hover:bg-gray-50">
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-800">@item.Date.ToString("dd/MM/yyyy")</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">@item.Description</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">@item.Cost.ToString("C")</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">@item.WorkshopName</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">@item.Mileage.ToString("N0") km</td>
+                            <td class="px-4 py-3 whitespace-nowrap text-sm text-center">
+                                <div class="flex justify-center space-x-2">         
+                                    <button @onclick="() => OnEditRequest.InvokeAsync(item)" class="p-2 bg-yellow-100 text-yellow-700 hover:bg-yellow-200 rounded-full" title="Editar">
+                                        <svg xmlns="[http://www.w3.org/2000/svg](http://www.w3.org/2000/svg)" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                                    </button>
+                                    <button @onclick="() => ConfirmDelete(item.Id)" class="p-2 bg-red-100 text-red-600 hover:bg-red-200 rounded-full" title="Eliminar">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" /></svg>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</div>
+
+@code {
+    [Parameter] public int VehicleId { get; set; }
+    [Parameter] public EventCallback OnAddRequest { get; set; }
+    [Parameter] public EventCallback<Maintenance> OnEditRequest { get; set; }
+
+    private List<Maintenance> _maintenances;
+    private bool _isLoading = true;
+
+    protected override async Task OnInitializedAsync() => await LoadMaintenances();
+
+    public async Task LoadMaintenances()
+    {
+        _isLoading = true;
+        var result = await ApiClient.GetByVehicleIdAsync(VehicleId);
+        if (result.IsSuccess) _maintenances = result.Data;
+        _isLoading = false;
+        StateHasChanged();
+    }
+
+    private async Task ConfirmDelete(int maintenanceId)
+    {
+        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "¿Estás seguro de que quieres eliminar este mantenimiento?");
+        if (confirmed)
+        {
+            var result = await ApiClient.DeleteAsync(maintenanceId);
+            if (result.IsSuccess)
+            {
+                ToastService.ShowSuccess("Mantenimiento eliminado con éxito.");
+                await LoadMaintenances();
+            }
+            else
+            {
+                ToastService.ShowError(result.ErrorMessage ?? "Error al eliminar el mantenimiento.");
+            }
+        }
+    }
+}

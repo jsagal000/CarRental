@@ -1,0 +1,196 @@
+﻿@page "/user-management"
+@inject CarRental.Web.Services.UserApiClient UserApiClient
+@inject NavigationManager NavigationManager
+@inject CarRental.Web.Services.ModalService ModalService
+@inject IToastService ToastService
+@using CarRental.Core.Models
+@using Blazored.Toast.Services
+
+<div class="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6">
+    <div class="max-w-7xl mx-auto">
+
+        <!-- Encabezado -->
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold text-gray-800">Gestión de Usuarios</h1>
+            <a href="/users/add" class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                </svg>
+                Nuevo Usuario
+            </a>
+        </div>
+
+        <!-- Estado de carga o error -->
+        @if (users == null && string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="bg-white p-6 rounded-xl shadow text-center text-gray-600 text-lg">
+                Cargando usuarios...
+            </div>
+        }
+        else if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="bg-white p-6 rounded-xl shadow text-center text-red-600 text-lg">
+                @errorMessage
+            </div>
+        }
+        else if (!users.Any())
+        {
+            <div class="bg-white p-6 rounded-xl shadow text-center text-gray-600 text-lg">
+                No hay usuarios registrados.
+            </div>
+        }
+        else
+        {
+            <!-- Tabla de usuarios -->
+            <div class="overflow-x-auto">
+                <table class="min-w-full bg-white rounded-xl shadow overflow-hidden">
+                    <thead class="bg-gray-100 text-gray-600 text-sm uppercase">
+                        <tr>
+                            <th class="px-3 py-2 text-left">Usuario</th>
+                            <th class="px-3 py-2 text-left">Nombre Completo</th>
+                            <th class="px-3 py-2 text-left">Email</th>
+                            <th class="px-3 py-2 text-left">Rol</th>
+                            <th class="px-3 py-2 text-left">Estado</th>
+                            <th class="px-3 py-2 text-left">Último Acceso</th>
+                            <th class="px-3 py-2 text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var user in users)
+                        {
+                            <tr class="border-t border-gray-100 hover:bg-gray-50">
+                                <td class="px-3 py-2 text-gray-800 font-medium">@user.Username</td>
+                                <td class="px-3 py-2 text-gray-800">@user.FullName</td>
+                                <td class="px-3 py-2 text-gray-800">@user.Email</td>
+                                <td class="px-3 py-2">
+                                    <span class="@GetRoleBadgeClass(user.Role)">
+                                        @GetRoleDisplayName(user.Role)
+                                    </span>
+                                </td>
+                                <td class="px-3 py-2">
+                                    <span class="@(user.IsActive ? "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800" : "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800")">
+                                        @(user.IsActive ? "Activo" : "Inactivo")
+                                    </span>
+                                </td>
+                                <td class="px-3 py-2 text-gray-600 text-sm">
+                                    @if (user.LastLoginAt.HasValue)
+                                    {
+                                        @user.LastLoginAt.Value.ToLocalTime().ToString("dd/MM/yyyy HH:mm:ss")
+                                    }
+                                    else
+                                    {
+                                        <span class="text-gray-400">Nunca</span>
+                                    }
+                                </td>
+                                <td class="px-3 py-2 text-center">
+                                    <div class="flex justify-center space-x-2">
+                                        <a href="/users/edit/@user.Id" class="p-2 bg-yellow-100 text-yellow-700 hover:bg-yellow-200 rounded-full" title="Editar">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                            </svg>
+                                        </a>
+                                        <button @onclick="() => ConfirmDeleteUser(user.Id)" class="p-2 bg-red-100 text-red-600 hover:bg-red-200 rounded-full" title="Eliminar">
+                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                            </svg>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    private List<User> users = new();
+    private string errorMessage = string.Empty;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadUsers();
+    }
+
+    private async Task LoadUsers()
+    {
+        errorMessage = string.Empty;
+        var result = await UserApiClient.GetUsersAsync();
+
+        if (result.IsSuccess)
+        {
+            users = result.Data?.ToList() ?? new List<User>();
+        }
+        else
+        {
+            users = new List<User>();
+            errorMessage = $"Error al cargar usuarios: {result.ErrorMessage}";
+            ToastService.ShowError(errorMessage);
+        }
+    }
+
+    private async Task ConfirmDeleteUser(int userId)
+    {
+        // Obtener información del usuario para mostrar en el modal
+        var user = users.FirstOrDefault(u => u.Id == userId);
+        var userInfo = user != null
+            ? $"al usuario {user.Username} ({user.FullName})"
+            : "este usuario";
+
+        // Mostrar modal de confirmación
+        var confirmed = await ModalService.ConfirmDeleteAsync(userInfo);
+
+        if (confirmed)
+        {
+            await HandleDeleteUser(userId);
+        }
+    }
+
+    private async Task HandleDeleteUser(int userId)
+    {
+        // Mostrar loading
+        await ModalService.ShowLoadingAsync("Eliminando usuario...");
+
+        var result = await UserApiClient.DeleteUserAsync(userId);
+
+        // Cerrar loading
+        await ModalService.CloseAsync();
+
+        if (result.IsSuccess)
+        {
+            await ModalService.ShowSuccessAsync("¡Eliminado!", "El usuario ha sido eliminado exitosamente.");
+            await LoadUsers();
+        }
+        else
+        {
+            await ModalService.ShowErrorAsync("Error al Eliminar", result.ErrorMessage ?? "Ocurrió un error inesperado");
+        }
+    }
+
+    private string GetRoleBadgeClass(UserRole role)
+    {
+        return role switch
+        {
+            UserRole.Admin => "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800",
+            UserRole.Manager => "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800",
+            UserRole.Employee => "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800",
+            UserRole.ReadOnly => "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800",
+            _ => "inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800"
+        };
+    }
+
+    private string GetRoleDisplayName(UserRole role)
+    {
+        return role switch
+        {
+            UserRole.Admin => "Administrador",
+            UserRole.Manager => "Manager",
+            UserRole.Employee => "Empleado",
+            UserRole.ReadOnly => "Solo Lectura",
+            _ => "Desconocido"
+        };
+    }
+}

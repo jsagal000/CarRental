@@ -1,0 +1,249 @@
+﻿@page "/users/add"
+@page "/users/edit/{Id:int}"
+
+@using CarRental.Core.Models
+@using CarRental.Core.Models.Dtos
+@using CarRental.Web.Models
+@using Blazored.Toast.Services
+@using Microsoft.AspNetCore.Components.Forms
+@using System.Globalization
+
+@inject CarRental.Web.Services.UserApiClient UserApiClient
+@inject NavigationManager NavigationManager
+@inject IToastService ToastService
+
+<div class="min-h-screen bg-gray-100 p-4 font-sans flex flex-col items-center">
+    <div class="w-full max-w-2xl bg-white p-6 rounded-lg shadow-md">
+
+        <h3 class="text-3xl font-bold text-center text-gray-800 mb-6">
+            @(_isEditMode ? "Editar Usuario" : "Agregar Nuevo Usuario")
+        </h3>
+
+        <EditForm Model="@_user" OnValidSubmit="HandleSubmit">
+            <DataAnnotationsValidator />
+
+            @if ((!_isEditMode && _createResponse != null && !_createResponse.IsSuccess) || (_isEditMode && _updateResponse != null && !_updateResponse.IsSuccess))
+            {
+                <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                    <strong class="font-bold">¡Error!</strong>
+                    <span class="block">@(_isEditMode? _updateResponse?.ErrorMessage : _createResponse?.ErrorMessage)</span>
+                </div>
+            }
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                @if (!_isEditMode)
+                {
+                    <div class="form-group">
+                        <label for="username" class="block text-sm font-medium text-gray-700 mb-1">Usuario:</label>
+                        <InputText class="w-full p-3 border rounded" @bind-Value="_user.Username" placeholder="Nombre de usuario" />
+                        <ValidationMessage For="@(() => _user.Username)" class="text-red-500 text-xs mt-1" />
+                    </div>
+                    <div class="form-group">
+                        <label for="password" class="block text-sm font-medium text-gray-700 mb-1">Contraseña:</label>
+                        <InputText type="password" class="w-full p-3 border rounded" @bind-Value="_user.Password" placeholder="Contraseña (mín. 6 caracteres)" />
+                        <ValidationMessage For="@(() => _user.Password)" class="text-red-500 text-xs mt-1" />
+                    </div>
+                }
+                <div class="form-group @(_isEditMode ? "md:col-span-2" : "")">
+                    <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email:</label>
+                    <InputText type="email" class="w-full p-3 border rounded" @bind-Value="_user.Email" placeholder="correo@ejemplo.com" />
+                    <ValidationMessage For="@(() => _user.Email)" class="text-red-500 text-xs mt-1" />
+                </div>
+                <div class="form-group">
+                    <label for="firstName" class="block text-sm font-medium text-gray-700 mb-1">Nombres:</label>
+                    <InputText class="w-full p-3 border rounded" @bind-Value="FormattedFirstName" placeholder="Nombres" />
+                    <ValidationMessage For="@(() => _user.FirstName)" class="text-red-500 text-xs mt-1" />
+                </div>
+                <div class="form-group">
+                    <label for="lastName" class="block text-sm font-medium text-gray-700 mb-1">Apellidos:</label>
+                    <InputText class="w-full p-3 border rounded" @bind-Value="FormattedLastName" placeholder="Apellidos" />
+                    <ValidationMessage For="@(() => _user.LastName)" class="text-red-500 text-xs mt-1" />
+                </div>
+                <div class="form-group">
+                    <label for="role" class="block text-sm font-medium text-gray-700 mb-1">Rol:</label>
+                    <InputSelect class="w-full p-3 border rounded" @bind-Value="_user.Role">
+                        @foreach (var role in Enum.GetValues<UserRole>())
+                        {
+                            <option value="@role">@GetRoleDisplayName(role)</option>
+                        }
+                    </InputSelect>
+                    <ValidationMessage For="@(() => _user.Role)" class="text-red-500 text-xs mt-1" />
+                </div>
+                @if (_isEditMode)
+                {
+                    <div class="form-group flex items-center">
+                        <div class="flex items-center h-12">
+                            <InputCheckbox @bind-Value="_user.IsActive" class="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded mr-2" />
+                            <label class="text-sm font-medium text-gray-700">Usuario activo</label>
+                        </div>
+                    </div>
+                }
+            </div>
+
+            <!-- Información adicional para contraseña en modo creación -->
+            @if (!_isEditMode)
+            {
+                <div class="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+                    <div class="flex items-start">
+                        <svg class="w-5 h-5 text-blue-600 mr-3 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                        <div>
+                            <h4 class="text-sm font-medium text-blue-800">Requisitos de contraseña</h4>
+                            <div class="text-sm text-blue-700 mt-1">
+                                <ul class="list-disc list-inside space-y-1">
+                                    <li>Mínimo 6 caracteres</li>
+                                    <li>Se recomienda usar mayúsculas, minúsculas, números y símbolos</li>
+                                    <li>Evita usar información personal obvia</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            <div class="flex justify-end space-x-4 pt-6">
+                <button type="button" class="px-6 py-3 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 transition duration-300 ease-in-out shadow-md font-semibold" @onclick="GoBackToList">Cancelar</button>
+                <button type="submit" class="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-300 ease-in-out shadow-md font-semibold">
+                    @(_isEditMode ? "Guardar Cambios" : "Crear Usuario")
+                </button>
+            </div>
+        </EditForm>
+    </div>
+</div>
+
+@code {
+    [Parameter] public int? Id { get; set; }
+
+    private UserFormModel _user = new();
+    private ApiResult<User> _createResponse;
+    private ApiResult<User> _updateResponse;
+
+    private bool _isEditMode => Id.HasValue;
+
+    private string FormattedFirstName
+    {
+        get => _user.FirstName;
+        set => _user.FirstName = CapitalizeEachWord(value);
+    }
+
+    private string FormattedLastName
+    {
+        get => _user.LastName;
+        set => _user.LastName = CapitalizeEachWord(value);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (_isEditMode)
+        {
+            var result = await UserApiClient.GetUserAsync(Id.Value);
+            if (result.IsSuccess)
+            {
+                var user = result.Data;
+                _user = new UserFormModel
+                {
+                    Email = user.Email,
+                    FirstName = user.FirstName,
+                    LastName = user.LastName,
+                    Role = user.Role,
+                    IsActive = user.IsActive
+                };
+            }
+            else
+            {
+                ToastService.ShowError($"Error al cargar usuario: {result.ErrorMessage}");
+                NavigationManager.NavigateTo("/user-management");
+            }
+        }
+        else
+        {
+            _user.Role = UserRole.ReadOnly;
+            _user.IsActive = true;
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (_isEditMode)
+        {
+            var updateDto = new UserForUpdateDto
+            {
+                Email = _user.Email,
+                FirstName = _user.FirstName,
+                LastName = _user.LastName,
+                Role = _user.Role,
+                IsActive = _user.IsActive
+            };
+
+            _updateResponse = await UserApiClient.UpdateUserAsync(Id.Value, updateDto);
+            if (_updateResponse.IsSuccess)
+            {
+                ToastService.ShowSuccess("Usuario actualizado con éxito.");
+                NavigationManager.NavigateTo("/user-management");
+            }
+            else
+            {
+                ToastService.ShowError(_updateResponse.ErrorMessage);
+            }
+        }
+        else
+        {
+            var createDto = new UserForCreationDto
+            {
+                Username = _user.Username,
+                Email = _user.Email,
+                Password = _user.Password,
+                FirstName = _user.FirstName,
+                LastName = _user.LastName,
+                Role = _user.Role
+            };
+
+            _createResponse = await UserApiClient.CreateUserAsync(createDto);
+            if (_createResponse.IsSuccess)
+            {
+                ToastService.ShowSuccess("Usuario creado con éxito.");
+                NavigationManager.NavigateTo("/user-management");
+            }
+            else
+            {
+                ToastService.ShowError(_createResponse.ErrorMessage);
+            }
+        }
+    }
+
+    private string CapitalizeEachWord(string input)
+    {
+        if (string.IsNullOrEmpty(input)) return input;
+        TextInfo textInfo = new CultureInfo("es-ES", false).TextInfo;
+        return textInfo.ToTitleCase(input.ToLower());
+    }
+
+    private string GetRoleDisplayName(UserRole role)
+    {
+        return role switch
+        {
+            UserRole.Admin => "Administrador",
+            UserRole.Manager => "Manager",
+            UserRole.Employee => "Empleado",
+            UserRole.ReadOnly => "Solo Lectura",
+            _ => "Desconocido"
+        };
+    }
+
+    private void GoBackToList()
+    {
+        NavigationManager.NavigateTo("/user-management");
+    }
+
+    private class UserFormModel
+    {
+        public string Username { get; set; } = string.Empty;
+        public string Email { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+        public string FirstName { get; set; } = string.Empty;
+        public string LastName { get; set; } = string.Empty;
+        public UserRole Role { get; set; } = UserRole.ReadOnly;
+        public bool IsActive { get; set; } = true;
+    }
+}

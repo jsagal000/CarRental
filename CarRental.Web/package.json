@@ -1,0 +1,20 @@
+{
+  "name": "carrental.web",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "build:tailwind": "tailwindcss -i ./wwwroot/css/app.tailwind.css -o ./wwwroot/css/app.min.css --minify",
+    "watch:tailwind": "tailwindcss -i ./wwwroot/css/app.tailwind.css -o ./wwwroot/css/app.min.css --watch",
+    "start": "npm run watch:tailwind"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "devDependencies": {
+    "autoprefixer": "^10.4.21",
+    "eslint": "^9.30.1",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^3.4.1"
+  }
+}

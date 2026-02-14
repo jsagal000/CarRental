@@ -1,0 +1,1022 @@
+﻿@page "/financial-reports"
+@inject CarRental.Web.Services.RentalApiClient RentalApiClient
+@inject CarRental.Web.Services.VehicleApiClient VehicleApiClient
+@inject CarRental.Web.Services.PartnerApiClient PartnerApiClient
+@inject IVehicleSubResourceApiClient<Maintenance, MaintenanceForCreationDto> MaintenanceApiClient
+@inject IVehicleSubResourceApiClient<Repair, RepairForCreationDto> RepairApiClient
+@inject IVehicleSubResourceApiClient<InsurancePolicy, InsurancePolicyForCreationDto> InsuranceApiClient
+@inject IToastService ToastService
+@inject IJSRuntime JSRuntime
+@using CarRental.Core.Models.Dtos
+@using CarRental.Core.Models
+@using CarRental.Web.Models
+@using CarRental.Web.Services
+@using System.Globalization
+@using Blazored.Toast.Services
+
+<div class="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6">
+    <div class="max-w-7xl mx-auto">
+
+        <!-- Encabezado -->
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-3xl font-bold text-gray-800">Reportes Financieros</h1>
+        </div>
+
+        <!-- Estado de carga o error -->
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="bg-white p-6 rounded-xl shadow text-center text-red-600 text-lg mb-6">
+                @errorMessage
+            </div>
+        }
+
+        <!-- Filtros -->
+        <div class="bg-white p-6 rounded-xl shadow mb-6">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+                <div class="form-group">
+                    <label for="startDate" class="block text-sm font-medium text-gray-700 mb-2">Fecha de Inicio:</label>
+                    <InputDate id="startDate" @bind-Value="StartDate" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                </div>
+                <div class="form-group">
+                    <label for="endDate" class="block text-sm font-medium text-gray-700 mb-2">Fecha de Fin:</label>
+                    <InputDate id="endDate" @bind-Value="EndDate" class="w-full p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500" />
+                </div>
+                <div>
+                    <button @onclick="GenerateReport" disabled="@isLoading" class="w-full inline-flex items-center justify-center px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:bg-gray-400 transition-colors">
+                        @if (isLoading)
+                        {
+                            <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                            <span>Cargando...</span>
+                        }
+                        else
+                        {
+@*                             <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-2m3 2v-2M9 21H5a2 2 0 01-2-2V7a2 2 0 012 2h14a2 2 0 012 2v12a2 2 0 01-2 2h-4m-6-2H9m7-2h2M9 9h6m-6 4h4"></path>
+                            </svg> *@
+                            <span>Generar Reporte</span>
+                        }
+                    </button>
+                </div>
+                <div>
+                    <button @onclick="ClearReport" disabled="@(isLoading || (companyPerspectiveReport?.Any() != true))" class="w-full inline-flex items-center justify-center px-4 py-3 bg-gray-500 text-white rounded-lg hover:bg-gray-600 disabled:bg-gray-300 transition-colors">
+                        <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                        </svg>
+                        <span>Limpiar</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Opciones de Exportación -->
+        @if (companyPerspectiveReport?.Any() == true)
+        {
+            <div class="bg-white p-4 rounded-xl shadow mb-6">
+                <div class="flex flex-wrap gap-3 items-center">
+                    <span class="text-sm font-medium text-gray-700">Exportar reporte:</span>
+                    <button @onclick="ExportToPdf" disabled="@isExporting" class="inline-flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:bg-gray-400 transition-colors text-sm font-medium">
+                        @if (isExporting && exportType == "PDF")
+                        {
+                            <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        }
+                        else
+                        {
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                            </svg>
+                        }
+                        PDF
+                    </button>
+                    <button @onclick="ExportToExcel" disabled="@isExporting" class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:bg-gray-400 transition-colors text-sm font-medium">
+                        @if (isExporting && exportType == "Excel")
+                        {
+                            <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                            </svg>
+                        }
+                        else
+                        {
+                            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-2m3 2v-2M9 21H5a2 2 0 01-2-2V7a2 2 0 012 2h14a2 2 0 012 2v12a2 2 0 01-2 2h-4m-6-2H9m7-2h2M9 9h6m-6 4h4"></path>
+                            </svg>
+                        }
+                        Excel
+                    </button>
+                </div>
+            </div>
+        }
+
+        @if (proportionalCalculationInfo?.Any() == true)
+        {
+            <div class="bg-white p-6 rounded-xl shadow border-l-4 border-blue-500 mb-6">
+                <div class="flex items-start">
+                    <svg class="w-6 h-6 text-blue-500 mr-3 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                    <div>
+                        <h3 class="text-lg font-semibold text-blue-800 mb-2">Información de Cálculo Proporcional</h3>
+                        <p class="text-sm text-blue-700 mb-3">Se encontraron alquileres que se extienden fuera del rango consultado. Los ingresos han sido calculados proporcionalmente:</p>
+                        <ul class="text-sm text-blue-600 space-y-1">
+                            @foreach (var info in proportionalCalculationInfo)
+                            {
+                                <li class="flex items-start">
+                                    <span class="w-2 h-2 bg-blue-400 rounded-full mt-2 mr-2 flex-shrink-0"></span>
+                                    @info
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        }
+
+        @if (isLoading)
+        {
+            <div class="bg-white p-6 rounded-xl shadow text-center text-gray-600 text-lg">
+                Generando reporte...
+            </div>
+        }
+        else if (companyPerspectiveReport?.Any() != true && !isLoading)
+        {
+            <div class="bg-white p-6 rounded-xl shadow text-center text-gray-600 text-lg">
+                No hay datos de reporte disponibles. Selecciona un rango de fechas y genera el reporte.
+            </div>
+        }
+        else
+        {
+            <!-- CUADRO 1: RESUMEN EMPRESA -->
+            @if (companyPerspectiveReport?.Any() == true)
+            {
+                <div class="mb-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center">
+                        <svg class="w-6 h-6 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-8m-9 0h2m0 0V9a2 2 0 012-2h2a2 2 0 012 2v12" />
+                        </svg>
+                        Ingresos de la Empresa (Período: @StartDate.ToString("dd/MM/yyyy") - @EndDate.ToString("dd/MM/yyyy"))
+                    </h2>
+
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white rounded-xl shadow overflow-hidden">
+                            <thead class="bg-gray-100 text-gray-600 text-sm uppercase">
+                                <tr>
+                                    <th class="px-3 py-2 text-left">Vehículo</th>
+                                    <th class="px-3 py-2 text-left">Propiedad</th>
+                                    <th class="px-3 py-2 text-right">Ingreso Bruto</th>
+                                    <th class="px-3 py-2 text-right">Mantenimiento</th>
+                                    <th class="px-3 py-2 text-right">Reparaciones</th>
+                                    <th class="px-3 py-2 text-right">Seguros</th>
+                                    <th class="px-3 py-2 text-right">Total Gastos</th>
+                                    <th class="px-3 py-2 text-right">Ingreso Total Empresa</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @{
+                                    decimal totalIngresosBrutos = 0;
+                                    decimal totalMantenimiento = 0;
+                                    decimal totalReparaciones = 0;
+                                    decimal totalSeguros = 0;
+                                    decimal totalGastos = 0;
+                                    decimal totalIngresoEmpresa = 0;
+                                }
+
+                                @foreach (var item in companyPerspectiveReport)
+                                {
+                                    totalIngresosBrutos += item.IngresoBruto;
+                                    totalMantenimiento += item.CostoMantenimiento;
+                                    totalReparaciones += item.CostoReparaciones;
+                                    totalSeguros += item.CostoSeguros;
+                                    totalGastos += item.TotalGastos;
+                                    totalIngresoEmpresa += item.IngresoTotalEmpresa;
+
+                                    <tr class="border-t border-gray-100 hover:bg-gray-50">
+                                        <td class="px-3 py-2 text-gray-800">
+                                            @item.VehiculoInfo
+                                            @if (item.TieneCalculoProporcional)
+                                            {
+                                                <span class="text-red-500 ml-2 text-sm" title="Cálculo proporcional aplicado">*</span>
+                                            }
+                                        </td>
+                                        <td class="px-3 py-2">
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium @(item.EsVehiculoEmpresa ? "bg-blue-100 text-blue-800" : "bg-green-100 text-green-800")">
+                                                @(item.EsVehiculoEmpresa ? "Empresa" : "Socio")
+                                            </span>
+                                        </td>
+                                        <td class="px-3 py-2 text-right font-semibold text-green-600">
+                                            @item.IngresoBruto.ToString("C", CultureInfo.GetCultureInfo("en-US"))
+                                        </td>
+                                        <td class="px-3 py-2 text-right text-red-600">
+                                            @item.CostoMantenimiento.ToString("C", CultureInfo.GetCultureInfo("en-US"))
+                                        </td>
+                                        <td class="px-3 py-2 text-right text-red-600">
+                                            @item.CostoReparaciones.ToString("C", CultureInfo.GetCultureInfo("en-US"))
+                                        </td>
+                                        <td class="px-3 py-2 text-right text-red-600">
+                                            @item.CostoSeguros.ToString("C", CultureInfo.GetCultureInfo("en-US"))
+                                        </td>
+                                        <td class="px-3 py-2 text-right font-semibold text-red-700">
+                                            @item.TotalGastos.ToString("C", CultureInfo.GetCultureInfo("en-US"))
+                                        </td>
+                                        <td class="px-3 py-2 text-right font-bold @(item.IngresoTotalEmpresa >= 0 ? "text-blue-700" : "text-red-700")">
+                                            @item.IngresoTotalEmpresa.ToString("C", CultureInfo.GetCultureInfo("en-US"))
+                                        </td>
+                                    </tr>
+                                }
+
+                                <!-- Fila de totales -->
+                                <tr class="bg-blue-100 font-bold border-t-2 border-blue-300">
+                                    <td class="px-3 py-2 font-bold text-blue-900" colspan="2">
+                                        TOTAL EMPRESA
+                                    </td>
+                                    <td class="px-3 py-2 text-right font-bold text-green-700">
+                                        @totalIngresosBrutos.ToString("C", CultureInfo.GetCultureInfo("en-US"))
+                                    </td>
+                                    <td class="px-3 py-2 text-right font-bold text-red-700">
+                                        @totalMantenimiento.ToString("C", CultureInfo.GetCultureInfo("en-US"))
+                                    </td>
+                                    <td class="px-3 py-2 text-right font-bold text-red-700">
+                                        @totalReparaciones.ToString("C", CultureInfo.GetCultureInfo("en-US"))
+                                    </td>
+                                    <td class="px-3 py-2 text-right font-bold text-red-700">
+                                        @totalSeguros.ToString("C", CultureInfo.GetCultureInfo("en-US"))
+                                    </td>
+                                    <td class="px-3 py-2 text-right font-bold text-red-800">
+                                        @totalGastos.ToString("C", CultureInfo.GetCultureInfo("en-US"))
+                                    </td>
+                                    <td class="px-3 py-2 text-right font-bold text-blue-800 text-lg">
+                                        @totalIngresoEmpresa.ToString("C", CultureInfo.GetCultureInfo("en-US"))
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            }
+
+            <!-- CUADRO 2: DETALLE PARA SOCIOS -->
+            @if (partnerDetailReport?.Any() == true)
+            {
+                <div class="mb-8">
+                    <h2 class="text-2xl font-bold text-gray-800 mb-4 flex items-center">
+                        <svg class="w-6 h-6 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
+                        Detalle para Socios (70% - 30%)
+                    </h2>
+
+                    <div class="overflow-x-auto">
+                        <table class="min-w-full bg-white rounded-xl shadow overflow-hidden">
+                            <thead class="bg-gray-100 text-gray-600 text-sm uppercase">
+                                <tr>
+                                    <th class="px-3 py-2 text-left">Vehículo</th>
+                                    <th class="px-3 py-2 text-left">Socio</th>
+                                    <th class="px-3 py-2 text-right">Ingreso Bruto</th>
+                                    <th class="px-3 py-2 text-right">Total Gastos</th>
+                                    <th class="px-3 py-2 text-right">Admin. Empresa (30%)</th>
+                                    <th class="px-3 py-2 text-right">Ingreso Total Socio</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @{
+                                    decimal totalIngresosBrutosSocios = 0;
+                                    decimal totalGastosSocios = 0;
+                                    decimal totalAdministracion = 0;
+                                    decimal totalIngresoSocios = 0;
+                                }
+
+                                @foreach (var item in partnerDetailReport)
+                                {
+                                    totalIngresosBrutosSocios += item.IngresoBrutoSocio;
+                                    totalGastosSocios += item.TotalGastos;
+                                    totalAdministracion += item.AdministracionEmpresa;
+                                    totalIngresoSocios += item.IngresoTotalSocio;
+
+                                    <tr class="border-t border-gray-100 hover:bg-gray-50">
+                                        <td class="px-3 py-2 text-gray-800">
+                                            @item.VehiculoInfo
+                                            @if (item.TieneCalculoProporcional)
+                                            {
+                                                <span class="text-red-500 ml-2 text-sm" title="Cálculo proporcional aplicado">*</span>
+                                            }
+                                        </td>
+                                        <td class="px-3 py-2 text-gray-800">
+                                            @item.NombreSocio
+                                        </td>
+                                        <td class="px-3 py-2 text-right font-semibold text-green-600">
+                                            @item.IngresoBrutoSocio.ToString("C", CultureInfo.GetCultureInfo("en-US"))
+                                        </td>
+                                        <td class="px-3 py-2 text-right text-red-600">
+                                            @item.TotalGastos.ToString("C", CultureInfo.GetCultureInfo("en-US"))
+                                        </td>
+                                        <td class="px-3 py-2 text-right text-blue-600">
+                                            @item.AdministracionEmpresa.ToString("C", CultureInfo.GetCultureInfo("en-US"))
+                                        </td>
+                                        <td class="px-3 py-2 text-right font-bold @(item.IngresoTotalSocio >= 0 ? "text-green-700" : "text-red-700")">
+                                            @item.IngresoTotalSocio.ToString("C", CultureInfo.GetCultureInfo("en-US"))
+                                        </td>
+                                    </tr>
+                                }
+
+                                <!-- Fila de totales -->
+                                <tr class="bg-green-100 font-bold border-t-2 border-green-300">
+                                    <td class="px-3 py-2 font-bold text-green-900" colspan="2">
+                                        TOTAL SOCIOS
+                                    </td>
+                                    <td class="px-3 py-2 text-right font-bold text-green-700">
+                                        @totalIngresosBrutosSocios.ToString("C", CultureInfo.GetCultureInfo("en-US"))
+                                    </td>
+                                    <td class="px-3 py-2 text-right font-bold text-red-700">
+                                        @totalGastosSocios.ToString("C", CultureInfo.GetCultureInfo("en-US"))
+                                    </td>
+                                    <td class="px-3 py-2 text-right font-bold text-blue-700">
+                                        @totalAdministracion.ToString("C", CultureInfo.GetCultureInfo("en-US"))
+                                    </td>
+                                    <td class="px-3 py-2 text-right font-bold text-green-800 text-lg">
+                                        @totalIngresoSocios.ToString("C", CultureInfo.GetCultureInfo("en-US"))
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            }
+        }
+    </div>
+</div>
+
+@code {
+    // Filtros
+    private DateTime StartDate { get; set; } = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+    private DateTime EndDate { get; set; } = DateTime.Today;
+
+    // Estados
+    private bool isLoading = false;
+    private bool isExporting = false;
+    private string exportType = "";
+    private string errorMessage = string.Empty;
+    private List<string> proportionalCalculationInfo = new List<string>();
+
+    // Datos de los reportes
+    private List<CompanyPerspectiveReportDto> companyPerspectiveReport;
+    private List<PartnerDetailReportDto> partnerDetailReport;
+
+    // Datos auxiliares
+    private List<Vehicle> vehicles;
+    private List<Partner> partners;
+    private List<Rental> allRentals;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadBasicData();
+    }
+
+    private async Task LoadBasicData()
+    {
+        try
+        {
+            var vehiclesTask = VehicleApiClient.GetVehiclesAsync();
+            var partnersTask = PartnerApiClient.GetPartnersAsync();
+
+            await Task.WhenAll(vehiclesTask, partnersTask);
+
+            vehicles = vehiclesTask.Result.IsSuccess ? vehiclesTask.Result.Data : new List<Vehicle>();
+            partners = partnersTask.Result.IsSuccess ? partnersTask.Result.Data : new List<Partner>();
+
+            Console.WriteLine($"[DEBUG] Loaded {vehicles.Count} vehicles and {partners.Count} partners");
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error al cargar datos básicos: {ex.Message}");
+        }
+    }
+
+    private async Task GenerateReport()
+    {
+        if (StartDate > EndDate)
+        {
+            errorMessage = "La fecha de inicio no puede ser posterior a la fecha de fin.";
+            ToastService.ShowError(errorMessage);
+            return;
+        }
+
+        errorMessage = string.Empty;
+        proportionalCalculationInfo.Clear();
+        isLoading = true;
+        companyPerspectiveReport = null;
+        partnerDetailReport = null;
+
+        try
+        {
+            var allRentalsResult = await RentalApiClient.GetRentalsAsync();
+            if (!allRentalsResult.IsSuccess)
+            {
+                errorMessage = $"Error al obtener alquileres: {allRentalsResult.ErrorMessage}";
+                return;
+            }
+
+            allRentals = allRentalsResult.Data ?? new List<Rental>();
+
+            var relevantRentals = allRentals
+                .Where(r => r.Status == Rental.RentalStatus.Completado || r.Status == Rental.RentalStatus.Activo)
+                .Where(r => DoesRentalIntersectPeriod(r, StartDate, EndDate))
+                .ToList();
+
+            Console.WriteLine($"[DEBUG] Found {relevantRentals.Count} rentals intersecting period {StartDate:yyyy-MM-dd} to {EndDate:yyyy-MM-dd}");
+
+            if (!relevantRentals.Any())
+            {
+                ToastService.ShowInfo("No se encontraron alquileres en el rango de fechas seleccionado.");
+                return;
+            }
+
+            var adjustedRentalsData = CalculateProportionalRevenues(relevantRentals);
+            await ProcessReportData(adjustedRentalsData);
+
+            var proportionalCount = proportionalCalculationInfo.Count;
+            ToastService.ShowSuccess($"Reporte generado exitosamente. {adjustedRentalsData.Count} vehículos procesados" +
+                (proportionalCount > 0 ? $", {proportionalCount} con cálculo proporcional" : "") + ".");
+        }
+        catch (Exception ex)
+        {
+            errorMessage = $"Error inesperado: {ex.Message}";
+            ToastService.ShowError(errorMessage);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void ClearReport()
+    {
+        companyPerspectiveReport = null;
+        partnerDetailReport = null;
+        proportionalCalculationInfo.Clear();
+        errorMessage = string.Empty;
+
+        ToastService.ShowInfo("Reporte limpiado correctamente.");
+        StateHasChanged();
+    }
+
+    private bool DoesRentalIntersectPeriod(Rental rental, DateTime periodStart, DateTime periodEnd)
+    {
+        var rentalStart = rental.StartDate.Date;
+        var rentalEnd = (rental.ActualReturnDate?.Date ?? rental.EndDate.Date);
+        return rentalEnd >= periodStart && rentalStart <= periodEnd;
+    }
+
+    private List<VehicleFinancialReportDto> CalculateProportionalRevenues(List<Rental> relevantRentals)
+    {
+        var result = new List<VehicleFinancialReportDto>();
+        var groupedByVehicle = relevantRentals.GroupBy(r => r.VehicleId);
+
+        foreach (var vehicleGroup in groupedByVehicle)
+        {
+            var vehicleId = vehicleGroup.Key;
+            var vehicle = vehicles?.FirstOrDefault(v => v.Id == vehicleId);
+
+            if (vehicle == null)
+            {
+                Console.WriteLine($"[WARNING] Vehicle not found for ID: {vehicleId}");
+                continue;
+            }
+
+            decimal totalProportionalRevenue = 0;
+            bool hasProportionalCalculation = false;
+            var calculationDetails = new List<string>();
+
+            foreach (var rental in vehicleGroup)
+            {
+                var proportionalRevenue = CalculateProportionalRevenueForRental(rental, StartDate, EndDate);
+                totalProportionalRevenue += proportionalRevenue.proportionalRevenue;
+
+                if (proportionalRevenue.wasAdjusted)
+                {
+                    hasProportionalCalculation = true;
+                    calculationDetails.Add($"{vehicle.Make} {vehicle.Model} ({vehicle.LicensePlate}): " +
+                        $"Alquiler del {rental.StartDate:dd/MM/yyyy} al {(rental.ActualReturnDate?.ToString("dd/MM/yyyy") ?? rental.EndDate.ToString("dd/MM/yyyy"))}, " +
+                        $"Tarifa diaria: {rental.DailyRate:C}, Días en período: {CalculateDaysInPeriod(rental, StartDate, EndDate)}, " +
+                        $"Ingreso proporcional: {proportionalRevenue.proportionalRevenue:C} (Original: {rental.TotalCost:C})");
+                }
+            }
+
+            proportionalCalculationInfo.AddRange(calculationDetails);
+
+            var vehicleReport = new VehicleFinancialReportDto
+            {
+                VehicleId = vehicleId,
+                Make = vehicle.Make,
+                Model = vehicle.Model,
+                Year = vehicle.Year,
+                Type = vehicle.Type,
+                LicensePlate = vehicle.LicensePlate,
+                TotalRevenue = totalProportionalRevenue,
+                IsCompanyVehicle = vehicle.Ownership == Vehicle.OwnershipType.Empresa
+            };
+
+            result.Add(vehicleReport);
+        }
+
+        return result;
+    }
+
+    private (decimal proportionalRevenue, bool wasAdjusted) CalculateProportionalRevenueForRental(Rental rental, DateTime periodStart, DateTime periodEnd)
+    {
+        var rentalStart = rental.StartDate.Date;
+        var rentalEnd = (rental.ActualReturnDate?.Date ?? rental.EndDate.Date);
+
+        var intersectionStart = rentalStart > periodStart ? rentalStart : periodStart;
+        var intersectionEnd = rentalEnd < periodEnd ? rentalEnd : periodEnd;
+
+        if (intersectionStart > intersectionEnd)
+        {
+            return (0, false);
+        }
+
+        // Usar exactamente la misma lógica que CalculateDaysInPeriod
+        int daysInPeriod = CalculateDaysInPeriod(rental, periodStart, periodEnd);
+
+        if (rentalStart >= periodStart && rentalEnd <= periodEnd)
+        {
+            int originalDays = (rentalEnd - rentalStart).Days;
+            if (daysInPeriod == originalDays)
+            {
+                return (rental.TotalCost, false);
+            }
+        }
+
+        var proportionalRevenue = rental.DailyRate * daysInPeriod;
+        return (proportionalRevenue, true);
+    }
+
+    private int CalculateDaysInPeriod(Rental rental, DateTime periodStart, DateTime periodEnd)
+    {
+        var rentalStart = rental.StartDate.Date;
+        var rentalEnd = (rental.ActualReturnDate?.Date ?? rental.EndDate.Date);
+
+        var intersectionStart = rentalStart > periodStart ? rentalStart : periodStart;
+        var intersectionEnd = rentalEnd < periodEnd ? rentalEnd : periodEnd;
+
+        if (intersectionStart > intersectionEnd) return 0;
+
+        if (intersectionStart == rentalStart)
+        {
+            return (intersectionEnd - intersectionStart).Days;
+        }
+        else
+        {
+            return (intersectionEnd - intersectionStart).Days + 1;
+        }
+    }
+
+    private async Task ProcessReportData(List<VehicleFinancialReportDto> rentalsData)
+    {
+        companyPerspectiveReport = new List<CompanyPerspectiveReportDto>();
+        partnerDetailReport = new List<PartnerDetailReportDto>();
+
+        var allMaintenances = await LoadAllMaintenances(rentalsData);
+        var allRepairs = await LoadAllRepairs(rentalsData);
+        var allInsurances = await LoadAllInsurances(rentalsData);
+
+        foreach (var rental in rentalsData)
+        {
+            var vehicle = vehicles?.FirstOrDefault(v => v.Id == rental.VehicleId);
+            if (vehicle == null) continue;
+
+            var vehicleInfo = $"{rental.Make} {rental.Model} ({rental.LicensePlate})";
+            var isCompanyVehicle = rental.IsCompanyVehicle;
+            var hasProportionalCalculation = proportionalCalculationInfo.Any(info => info.Contains(rental.LicensePlate));
+
+            var costoMantenimiento = allMaintenances.Where(m => m.VehicleId == rental.VehicleId).Sum(m => m.Cost);
+            var costoReparaciones = allRepairs.Where(r => r.VehicleId == rental.VehicleId).Sum(r => r.Cost);
+            var costoSeguros = allInsurances.Where(i => i.VehicleId == rental.VehicleId).Sum(i => CalculateInsuranceCostForPeriod(i, StartDate, EndDate));
+            var totalGastos = costoMantenimiento + costoReparaciones + costoSeguros;
+
+            decimal ingresoTotalEmpresa = isCompanyVehicle
+                ? rental.TotalRevenue - totalGastos
+                : rental.TotalRevenue * 0.30m;
+
+            companyPerspectiveReport.Add(new CompanyPerspectiveReportDto
+            {
+                VehiculoInfo = vehicleInfo,
+                EsVehiculoEmpresa = isCompanyVehicle,
+                IngresoBruto = rental.TotalRevenue,
+                CostoMantenimiento = costoMantenimiento,
+                CostoReparaciones = costoReparaciones,
+                CostoSeguros = costoSeguros,
+                TotalGastos = totalGastos,
+                IngresoTotalEmpresa = ingresoTotalEmpresa,
+                TieneCalculoProporcional = hasProportionalCalculation
+            });
+
+            if (!isCompanyVehicle)
+            {
+                var gananciaNeta = rental.TotalRevenue - totalGastos;
+                var administracionEmpresa = rental.TotalRevenue * 0.30m;
+                var ingresoTotalSocio = gananciaNeta - administracionEmpresa;
+
+                var nombreSocio = "Socio Desconocido";
+                if (vehicle.PartnerId.HasValue)
+                {
+                    var partner = partners?.FirstOrDefault(p => p.Id == vehicle.PartnerId.Value);
+                    if (partner != null)
+                    {
+                        nombreSocio = $"{partner.FirstName} {partner.LastName}";
+                    }
+                }
+
+                partnerDetailReport.Add(new PartnerDetailReportDto
+                {
+                    VehiculoInfo = vehicleInfo,
+                    NombreSocio = nombreSocio,
+                    IngresoBrutoSocio = rental.TotalRevenue,
+                    TotalGastos = totalGastos,
+                    AdministracionEmpresa = administracionEmpresa,
+                    IngresoTotalSocio = ingresoTotalSocio,
+                    TieneCalculoProporcional = hasProportionalCalculation
+                });
+            }
+        }
+    }
+
+    private async Task<List<Maintenance>> LoadAllMaintenances(List<VehicleFinancialReportDto> rentalsData)
+    {
+        var allMaintenances = new List<Maintenance>();
+        foreach (var rental in rentalsData)
+        {
+            try
+            {
+                var result = await MaintenanceApiClient.GetByVehicleIdAsync(rental.VehicleId);
+                if (result.IsSuccess && result.Data != null)
+                {
+                    var filteredMaintenances = result.Data.Where(m => m.Date >= StartDate && m.Date <= EndDate).ToList();
+                    allMaintenances.AddRange(filteredMaintenances);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] Error loading maintenances for vehicle {rental.VehicleId}: {ex.Message}");
+            }
+        }
+        return allMaintenances;
+    }
+
+    private async Task<List<Repair>> LoadAllRepairs(List<VehicleFinancialReportDto> rentalsData)
+    {
+        var allRepairs = new List<Repair>();
+        foreach (var rental in rentalsData)
+        {
+            try
+            {
+                var result = await RepairApiClient.GetByVehicleIdAsync(rental.VehicleId);
+                if (result.IsSuccess && result.Data != null)
+                {
+                    var filteredRepairs = result.Data.Where(r => r.Date >= StartDate && r.Date <= EndDate).ToList();
+                    allRepairs.AddRange(filteredRepairs);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] Error loading repairs for vehicle {rental.VehicleId}: {ex.Message}");
+            }
+        }
+        return allRepairs;
+    }
+
+    private async Task<List<InsurancePolicy>> LoadAllInsurances(List<VehicleFinancialReportDto> rentalsData)
+    {
+        var allInsurances = new List<InsurancePolicy>();
+        foreach (var rental in rentalsData)
+        {
+            try
+            {
+                var result = await InsuranceApiClient.GetByVehicleIdAsync(rental.VehicleId);
+                if (result.IsSuccess && result.Data != null)
+                {
+                    var filteredInsurances = result.Data.Where(i => i.StartDate <= EndDate && i.EndDate >= StartDate).ToList();
+                    allInsurances.AddRange(filteredInsurances);
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ERROR] Error loading insurances for vehicle {rental.VehicleId}: {ex.Message}");
+            }
+        }
+        return allInsurances;
+    }
+
+    private decimal CalculateInsuranceCostForPeriod(InsurancePolicy insurance, DateTime periodStart, DateTime periodEnd)
+    {
+        var overlapStart = insurance.StartDate > periodStart ? insurance.StartDate : periodStart;
+        var overlapEnd = insurance.EndDate < periodEnd ? insurance.EndDate : periodEnd;
+
+        if (overlapStart > overlapEnd) return 0;
+
+        var overlapDays = (overlapEnd - overlapStart).Days + 1;
+
+        if (insurance.MonthlyInstallment > 0)
+        {
+            var dailyRate = insurance.MonthlyInstallment / 30.0m;
+            return dailyRate * overlapDays;
+        }
+        else if (insurance.InsurancePremium > 0)
+        {
+            var totalPolicyDays = (insurance.EndDate - insurance.StartDate).Days + 1;
+            var dailyRate = insurance.InsurancePremium / totalPolicyDays;
+            return dailyRate * overlapDays;
+        }
+
+        return 0;
+    }
+
+    private string GenerateHtmlForExport()
+    {
+        var sb = new System.Text.StringBuilder();
+
+        sb.AppendLine("<!DOCTYPE html>");
+        sb.AppendLine("<html>");
+        sb.AppendLine("<head>");
+        sb.AppendLine("<meta charset='utf-8'>");
+        sb.AppendLine("<title>Reporte Financiero</title>");
+        sb.AppendLine("<style>");
+        sb.AppendLine("body { font-family: Arial, sans-serif; margin: 20px; font-size: 12px; }");
+        sb.AppendLine(".header { text-align: center; margin-bottom: 30px; }");
+        sb.AppendLine("table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }");
+        sb.AppendLine("th, td { border: 1px solid #ddd; padding: 6px; text-align: left; }");
+        sb.AppendLine("th { background-color: #f2f2f2; font-weight: bold; }");
+        sb.AppendLine(".text-right { text-align: right; }");
+        sb.AppendLine(".company { background-color: #e3f2fd; }");
+        sb.AppendLine(".partner { background-color: #e8f5e8; }");
+        sb.AppendLine(".total { background-color: #f5f5f5; font-weight: bold; }");
+        sb.AppendLine(".proportional { color: #d32f2f; }");
+        sb.AppendLine("</style>");
+        sb.AppendLine("</head>");
+        sb.AppendLine("<body>");
+        sb.AppendLine("<div class='header'>");
+        sb.AppendLine("<h1>Reporte Financiero</h1>");
+        sb.AppendLine($"<p>Período: {StartDate:dd/MM/yyyy} - {EndDate:dd/MM/yyyy}</p>");
+        sb.AppendLine("</div>");
+
+        // Tabla de empresa
+        if (companyPerspectiveReport?.Any() == true)
+        {
+            sb.AppendLine("<h2>Ingresos de la Empresa</h2>");
+            sb.AppendLine("<table>");
+            sb.AppendLine("<thead>");
+            sb.AppendLine("<tr>");
+            sb.AppendLine("<th>Vehículo</th>");
+            sb.AppendLine("<th>Propiedad</th>");
+            sb.AppendLine("<th class='text-right'>Ingreso Bruto</th>");
+            sb.AppendLine("<th class='text-right'>Mantenimiento</th>");
+            sb.AppendLine("<th class='text-right'>Reparaciones</th>");
+            sb.AppendLine("<th class='text-right'>Seguros</th>");
+            sb.AppendLine("<th class='text-right'>Total Gastos</th>");
+            sb.AppendLine("<th class='text-right'>Ingreso Total Empresa</th>");
+            sb.AppendLine("</tr>");
+            sb.AppendLine("</thead>");
+            sb.AppendLine("<tbody>");
+
+            decimal totalIngresosBrutos = 0, totalMantenimiento = 0, totalReparaciones = 0;
+            decimal totalSeguros = 0, totalGastos = 0, totalIngresoEmpresa = 0;
+
+            foreach (var item in companyPerspectiveReport)
+            {
+                totalIngresosBrutos += item.IngresoBruto;
+                totalMantenimiento += item.CostoMantenimiento;
+                totalReparaciones += item.CostoReparaciones;
+                totalSeguros += item.CostoSeguros;
+                totalGastos += item.TotalGastos;
+                totalIngresoEmpresa += item.IngresoTotalEmpresa;
+
+                var proportionalIndicator = item.TieneCalculoProporcional ? "<span class='proportional'>*</span>" : "";
+                var rowClass = item.EsVehiculoEmpresa ? "company" : "partner";
+
+                sb.AppendLine($"<tr class='{rowClass}'>");
+                sb.AppendLine($"<td>{item.VehiculoInfo}{proportionalIndicator}</td>");
+                sb.AppendLine($"<td>{(item.EsVehiculoEmpresa ? "Empresa" : "Socio")}</td>");
+                sb.AppendLine($"<td class='text-right'>{item.IngresoBruto:C}</td>");
+                sb.AppendLine($"<td class='text-right'>{item.CostoMantenimiento:C}</td>");
+                sb.AppendLine($"<td class='text-right'>{item.CostoReparaciones:C}</td>");
+                sb.AppendLine($"<td class='text-right'>{item.CostoSeguros:C}</td>");
+                sb.AppendLine($"<td class='text-right'>{item.TotalGastos:C}</td>");
+                sb.AppendLine($"<td class='text-right'>{item.IngresoTotalEmpresa:C}</td>");
+                sb.AppendLine("</tr>");
+            }
+
+            sb.AppendLine("<tr class='total'>");
+            sb.AppendLine("<td colspan='2'>TOTAL EMPRESA</td>");
+            sb.AppendLine($"<td class='text-right'>{totalIngresosBrutos:C}</td>");
+            sb.AppendLine($"<td class='text-right'>{totalMantenimiento:C}</td>");
+            sb.AppendLine($"<td class='text-right'>{totalReparaciones:C}</td>");
+            sb.AppendLine($"<td class='text-right'>{totalSeguros:C}</td>");
+            sb.AppendLine($"<td class='text-right'>{totalGastos:C}</td>");
+            sb.AppendLine($"<td class='text-right'>{totalIngresoEmpresa:C}</td>");
+            sb.AppendLine("</tr>");
+            sb.AppendLine("</tbody>");
+            sb.AppendLine("</table>");
+        }
+
+        // Tabla de socios
+        if (partnerDetailReport?.Any() == true)
+        {
+            sb.AppendLine("<h2>Detalle para Socios (70% - 30%)</h2>");
+            sb.AppendLine("<table>");
+            sb.AppendLine("<thead>");
+            sb.AppendLine("<tr>");
+            sb.AppendLine("<th>Vehículo</th>");
+            sb.AppendLine("<th>Socio</th>");
+            sb.AppendLine("<th class='text-right'>Ingreso Bruto</th>");
+            sb.AppendLine("<th class='text-right'>Total Gastos</th>");
+            sb.AppendLine("<th class='text-right'>Admin. Empresa (30%)</th>");
+            sb.AppendLine("<th class='text-right'>Ingreso Total Socio</th>");
+            sb.AppendLine("</tr>");
+            sb.AppendLine("</thead>");
+            sb.AppendLine("<tbody>");
+
+            decimal totalIngresosBrutosSocios = 0, totalGastosSocios = 0;
+            decimal totalAdministracion = 0, totalIngresoSocios = 0;
+
+            foreach (var item in partnerDetailReport)
+            {
+                totalIngresosBrutosSocios += item.IngresoBrutoSocio;
+                totalGastosSocios += item.TotalGastos;
+                totalAdministracion += item.AdministracionEmpresa;
+                totalIngresoSocios += item.IngresoTotalSocio;
+
+                var proportionalIndicator = item.TieneCalculoProporcional ? "<span class='proportional'>*</span>" : "";
+
+                sb.AppendLine("<tr class='partner'>");
+                sb.AppendLine($"<td>{item.VehiculoInfo}{proportionalIndicator}</td>");
+                sb.AppendLine($"<td>{item.NombreSocio}</td>");
+                sb.AppendLine($"<td class='text-right'>{item.IngresoBrutoSocio:C}</td>");
+                sb.AppendLine($"<td class='text-right'>{item.TotalGastos:C}</td>");
+                sb.AppendLine($"<td class='text-right'>{item.AdministracionEmpresa:C}</td>");
+                sb.AppendLine($"<td class='text-right'>{item.IngresoTotalSocio:C}</td>");
+                sb.AppendLine("</tr>");
+            }
+
+            sb.AppendLine("<tr class='total'>");
+            sb.AppendLine("<td colspan='2'>TOTAL SOCIOS</td>");
+            sb.AppendLine($"<td class='text-right'>{totalIngresosBrutosSocios:C}</td>");
+            sb.AppendLine($"<td class='text-right'>{totalGastosSocios:C}</td>");
+            sb.AppendLine($"<td class='text-right'>{totalAdministracion:C}</td>");
+            sb.AppendLine($"<td class='text-right'>{totalIngresoSocios:C}</td>");
+            sb.AppendLine("</tr>");
+            sb.AppendLine("</tbody>");
+            sb.AppendLine("</table>");
+        }
+
+        if (proportionalCalculationInfo?.Any() == true)
+        {
+            sb.AppendLine("<h3>Información de Cálculos Proporcionales</h3>");
+            sb.AppendLine("<p><small>Los elementos marcados con (*) tuvieron cálculo proporcional:</small></p>");
+            sb.AppendLine("<ul>");
+            foreach (var info in proportionalCalculationInfo)
+            {
+                sb.AppendLine($"<li><small>{info}</small></li>");
+            }
+            sb.AppendLine("</ul>");
+        }
+
+        sb.AppendLine("</body>");
+        sb.AppendLine("</html>");
+
+        return sb.ToString();
+    }
+
+    private string GenerateCsvContent()
+    {
+        var csv = new System.Text.StringBuilder();
+
+        csv.AppendLine($"Reporte Financiero - Período: {StartDate:dd/MM/yyyy} - {EndDate:dd/MM/yyyy}");
+        csv.AppendLine();
+
+        if (companyPerspectiveReport?.Any() == true)
+        {
+            csv.AppendLine("INGRESOS DE LA EMPRESA");
+            csv.AppendLine("Vehículo,Propiedad,Cálculo Proporcional,Ingreso Bruto,Mantenimiento,Reparaciones,Seguros,Total Gastos,Ingreso Total Empresa");
+
+            foreach (var item in companyPerspectiveReport)
+            {
+                csv.AppendLine($"\"{item.VehiculoInfo}\",\"{(item.EsVehiculoEmpresa ? "Empresa" : "Socio")}\",\"{(item.TieneCalculoProporcional ? "Sí" : "No")}\",{item.IngresoBruto},{item.CostoMantenimiento},{item.CostoReparaciones},{item.CostoSeguros},{item.TotalGastos},{item.IngresoTotalEmpresa}");
+            }
+
+            var totalIngresosBrutos = companyPerspectiveReport.Sum(x => x.IngresoBruto);
+            var totalMantenimiento = companyPerspectiveReport.Sum(x => x.CostoMantenimiento);
+            var totalReparaciones = companyPerspectiveReport.Sum(x => x.CostoReparaciones);
+            var totalSeguros = companyPerspectiveReport.Sum(x => x.CostoSeguros);
+            var totalGastos = companyPerspectiveReport.Sum(x => x.TotalGastos);
+            var totalIngresoEmpresa = companyPerspectiveReport.Sum(x => x.IngresoTotalEmpresa);
+
+            csv.AppendLine($"\"TOTAL EMPRESA\",\"\",\"\",{totalIngresosBrutos},{totalMantenimiento},{totalReparaciones},{totalSeguros},{totalGastos},{totalIngresoEmpresa}");
+            csv.AppendLine();
+        }
+
+        if (partnerDetailReport?.Any() == true)
+        {
+            csv.AppendLine("DETALLE PARA SOCIOS (70% - 30%)");
+            csv.AppendLine("Vehículo,Socio,Cálculo Proporcional,Ingreso Bruto,Total Gastos,Admin. Empresa (30%),Ingreso Total Socio");
+
+            foreach (var item in partnerDetailReport)
+            {
+                csv.AppendLine($"\"{item.VehiculoInfo}\",\"{item.NombreSocio}\",\"{(item.TieneCalculoProporcional ? "Sí" : "No")}\",{item.IngresoBrutoSocio},{item.TotalGastos},{item.AdministracionEmpresa},{item.IngresoTotalSocio}");
+            }
+
+            var totalIngresosBrutosSocios = partnerDetailReport.Sum(x => x.IngresoBrutoSocio);
+            var totalGastosSocios = partnerDetailReport.Sum(x => x.TotalGastos);
+            var totalAdministracion = partnerDetailReport.Sum(x => x.AdministracionEmpresa);
+            var totalIngresoSocios = partnerDetailReport.Sum(x => x.IngresoTotalSocio);
+
+            csv.AppendLine($"\"TOTAL SOCIOS\",\"\",\"\",{totalIngresosBrutosSocios},{totalGastosSocios},{totalAdministracion},{totalIngresoSocios}");
+        }
+
+        return csv.ToString();
+    }
+
+    public class CompanyPerspectiveReportDto
+    {
+        public string VehiculoInfo { get; set; }
+        public bool EsVehiculoEmpresa { get; set; }
+        public decimal IngresoBruto { get; set; }
+        public decimal CostoMantenimiento { get; set; }
+        public decimal CostoReparaciones { get; set; }
+        public decimal CostoSeguros { get; set; }
+        public decimal TotalGastos { get; set; }
+        public decimal IngresoTotalEmpresa { get; set; }
+        public bool TieneCalculoProporcional { get; set; }
+    }
+
+    public class PartnerDetailReportDto
+    {
+        public string VehiculoInfo { get; set; }
+        public string NombreSocio { get; set; }
+        public decimal IngresoBrutoSocio { get; set; }
+        public decimal TotalGastos { get; set; }
+        public decimal AdministracionEmpresa { get; set; }
+        public decimal IngresoTotalSocio { get; set; }
+        public bool TieneCalculoProporcional { get; set; }
+    }
+
+    private async Task ExportToPdf()
+    {
+        if (companyPerspectiveReport?.Any() != true)
+        {
+            ToastService.ShowWarning("No hay datos para exportar.");
+            return;
+        }
+
+        isExporting = true;
+        exportType = "PDF";
+
+        try
+        {
+            var htmlContent = GenerateHtmlForExport();
+            await JSRuntime.InvokeVoidAsync("printReport", htmlContent);
+            ToastService.ShowSuccess("Reporte PDF abierto para imprimir.");
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error al exportar a PDF: {ex.Message}");
+        }
+        finally
+        {
+            isExporting = false;
+            exportType = "";
+        }
+    }
+
+
+    private async Task ExportToExcel()
+    {
+        if (companyPerspectiveReport?.Any() != true)
+        {
+            ToastService.ShowWarning("No hay datos para exportar.");
+            return;
+        }
+
+        isExporting = true;
+        exportType = "Excel";
+
+        try
+        {
+            var csvContent = GenerateCsvContent();
+            await JSRuntime.InvokeVoidAsync("downloadFile", csvContent, $"Reporte_Financiero_{StartDate:yyyy-MM-dd}_a_{EndDate:yyyy-MM-dd}.csv", "text/csv");
+            ToastService.ShowSuccess("Reporte Excel generado exitosamente.");
+        }
+        catch (Exception ex)
+        {
+            ToastService.ShowError($"Error al exportar a Excel: {ex.Message}");
+        }
+        finally
+        {
+            isExporting = false;
+            exportType = "";
+        }
+    }
+}

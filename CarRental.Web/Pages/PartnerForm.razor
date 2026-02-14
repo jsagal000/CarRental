@@ -1,0 +1,327 @@
+﻿@page "/partners/add"
+@page "/partners/edit/{Id:int}"
+
+@using CarRental.Core.Models
+@using CarRental.Core.Models.Dtos
+@using CarRental.Web.Models
+@using Blazored.Toast.Services
+@using Microsoft.AspNetCore.Components.Forms
+@using System.Globalization
+
+@inject CarRental.Web.Services.PartnerApiClient PartnerApiClient
+@inject CarRental.Web.Services.PermissionApiClient PermissionApiClient
+@inject NavigationManager NavigationManager
+@inject IToastService ToastService
+
+@if (isLoadingPermissions)
+{
+    <div class="min-h-screen bg-gray-100 p-4 font-sans flex flex-col items-center justify-center">
+        <div class="bg-white p-8 rounded-lg shadow-md text-center">
+            <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p class="text-gray-600">Cargando formulario...</p>
+        </div>
+    </div>
+}
+else if (!hasModuleAccess)
+{
+    <div class="min-h-screen bg-gray-100 p-4 font-sans flex flex-col items-center justify-center">
+        <div class="bg-white p-8 rounded-lg shadow-md text-center">
+            <div class="mb-4">
+                <svg class="w-20 h-20 text-red-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                </svg>
+            </div>
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">Acceso Denegado</h2>
+            <p class="text-gray-600 mb-4">No tienes acceso al módulo de Socios.</p>
+            <button @onclick="GoBackToList" class="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-300 ease-in-out shadow-md font-semibold">
+                Volver al Inicio
+            </button>
+        </div>
+    </div>
+}
+else if (!hasPermission)
+{
+    <div class="min-h-screen bg-gray-100 p-4 font-sans flex flex-col items-center justify-center">
+        <div class="bg-white p-8 rounded-lg shadow-md text-center">
+            <div class="mb-4">
+                <svg class="w-16 h-16 text-orange-500 mx-auto" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 18.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                </svg>
+            </div>
+            <h2 class="text-2xl font-bold text-gray-800 mb-2">Permiso Insuficiente</h2>
+            <p class="text-gray-600 mb-4">
+                No tienes permisos para @(_isEditMode ? "editar" : "crear") socios.
+            </p>
+            <button @onclick="GoBackToList" class="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-300 ease-in-out shadow-md font-semibold">
+                Volver a la Lista
+            </button>
+        </div>
+    </div>
+}
+else
+{
+    <div class="min-h-screen bg-gray-100 p-4 font-sans flex flex-col items-center">
+        <div class="w-full max-w-2xl bg-white p-6 rounded-lg shadow-md">
+
+            <h3 class="text-3xl font-bold text-center text-gray-800 mb-6">
+                @(_isEditMode ? "Editar Socio" : "Agregar Nuevo Socio")
+            </h3>
+
+            <EditForm Model="@_partner" OnValidSubmit="HandleSubmit">
+                <DataAnnotationsValidator />
+
+                @if ((!_isEditMode && _createResponse != null && !_createResponse.IsSuccess) || (_isEditMode && _updateResponse != null && !_updateResponse.IsSuccess))
+                {
+                    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                        <strong class="font-bold">¡Error!</strong>
+                        <span class="block">@(_isEditMode? _updateResponse?.ErrorMessage : _createResponse?.ErrorMessage)</span>
+                    </div>
+                }
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                    <div class="form-group">
+                        <label for="firstName" class="block text-sm font-medium text-gray-700 mb-1">Nombres:</label>
+                        <InputText class="w-full p-3 border rounded" @bind-Value="FormattedFirstName" />
+                        <ValidationMessage For="@(() => _partner.FirstName)" class="text-red-500 text-xs mt-1" />
+                    </div>
+                    <div class="form-group">
+                        <label for="lastName" class="block text-sm font-medium text-gray-700 mb-1">Apellidos:</label>
+                        <InputText class="w-full p-3 border rounded" @bind-Value="FormattedLastName" />
+                        <ValidationMessage For="@(() => _partner.LastName)" class="text-red-500 text-xs mt-1" />
+                    </div>
+                    <div class="form-group">
+                        <label for="cedula" class="block text-sm font-medium text-gray-700 mb-1">Cédula:</label>
+                        <InputText class="w-full p-3 border rounded" @bind-Value="_partner.Cedula" />
+                        <ValidationMessage For="@(() => _partner.Cedula)" class="text-red-500 text-xs mt-1" />
+                    </div>
+                    <div class="form-group">
+                        <label for="email" class="block text-sm font-medium text-gray-700 mb-1">Email:</label>
+                        <InputText type="email" class="w-full p-3 border rounded" @bind-Value="_partner.Email" />
+                        <ValidationMessage For="@(() => _partner.Email)" class="text-red-500 text-xs mt-1" />
+                    </div>
+                    <div class="form-group">
+                        <label for="phoneNumber" class="block text-sm font-medium text-gray-700 mb-1">Teléfono:</label>
+                        <InputText class="w-full p-3 border rounded" @bind-Value="_partner.PhoneNumber" />
+                        <ValidationMessage For="@(() => _partner.PhoneNumber)" class="text-red-500 text-xs mt-1" />
+                    </div>
+                    <div class="form-group">
+                        <label for="country" class="block text-sm font-medium text-gray-700 mb-1">País:</label>
+                        <InputText class="w-full p-3 border rounded" @bind-Value="FormattedCountry" />
+                        <ValidationMessage For="@(() => _partner.Country)" class="text-red-500 text-xs mt-1" />
+                    </div>
+                    <div class="form-group">
+                        <label for="province" class="block text-sm font-medium text-gray-700 mb-1">Provincia:</label>
+                        <InputText class="w-full p-3 border rounded" @bind-Value="FormattedProvince" />
+                        <ValidationMessage For="@(() => _partner.Province)" class="text-red-500 text-xs mt-1" />
+                    </div>
+                    <div class="form-group">
+                        <label for="city" class="block text-sm font-medium text-gray-700 mb-1">Ciudad:</label>
+                        <InputText class="w-full p-3 border rounded" @bind-Value="FormattedCity" />
+                        <ValidationMessage For="@(() => _partner.City)" class="text-red-500 text-xs mt-1" />
+                    </div>
+                    <div class="form-group md:col-span-2">
+                        <label for="address" class="block text-sm font-medium text-gray-700 mb-1">Dirección:</label>
+                        <InputText class="w-full p-3 border rounded" @bind-Value="FormattedAddress" />
+                        <ValidationMessage For="@(() => _partner.Address)" class="text-red-500 text-xs mt-1" />
+                    </div>
+                    <div class="form-group">
+                        <label for="bank" class="block text-sm font-medium text-gray-700 mb-1">Banco:</label>
+                        <InputText class="w-full p-3 border rounded" @bind-Value="FormattedBank" />
+                        <ValidationMessage For="@(() => _partner.Bank)" class="text-red-500 text-xs mt-1" />
+                    </div>
+                    <div class="form-group">
+                        <label for="accountType" class="block text-sm font-medium text-gray-700 mb-1">Tipo de Cuenta:</label>
+                        <InputSelect class="w-full p-3 border rounded" @bind-Value="_partner.TypeOfAccount">
+                            @foreach (var accType in Enum.GetValues<Partner.AccountType>())
+                            {
+                                <option value="@accType">@accType.ToString()</option>
+                            }
+                        </InputSelect>
+                        <ValidationMessage For="@(() => _partner.TypeOfAccount)" class="text-red-500 text-xs mt-1" />
+                    </div>
+                    <div class="form-group md:col-span-2">
+                        <label for="accountNumber" class="block text-sm font-medium text-gray-700 mb-1">Número de Cuenta:</label>
+                        <InputText class="w-full p-3 border rounded" @bind-Value="_partner.AccountNumber" />
+                        <ValidationMessage For="@(() => _partner.AccountNumber)" class="text-red-500 text-xs mt-1" />
+                    </div>
+                </div>
+
+                <div class="flex justify-end space-x-4 pt-6">
+                    <button type="button" class="px-6 py-3 bg-gray-300 text-gray-800 rounded-md hover:bg-gray-400 transition duration-300 ease-in-out shadow-md font-semibold" @onclick="GoBackToList">Cancelar</button>
+                    <button type="submit" class="px-6 py-3 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition duration-300 ease-in-out shadow-md font-semibold">
+                        @(_isEditMode ? "Guardar Cambios" : "Guardar Socio")
+                    </button>
+                </div>
+            </EditForm>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public int? Id { get; set; }
+
+    private Partner _partner = new();
+    private ApiResult<Partner> _createResponse;
+    private ApiResult<bool> _updateResponse;
+
+    private bool isLoadingPermissions = true;
+    private bool hasModuleAccess = false;
+    private bool hasPermission = false;
+
+    private bool _isEditMode => Id.HasValue;
+
+    private string FormattedFirstName
+    {
+        get => _partner.FirstName;
+        set => _partner.FirstName = CapitalizeEachWord(value);
+    }
+
+    private string FormattedLastName
+    {
+        get => _partner.LastName;
+        set => _partner.LastName = CapitalizeEachWord(value);
+    }
+
+    private string FormattedAddress
+    {
+        get => _partner.Address;
+        set => _partner.Address = CapitalizeEachWord(value);
+    }
+
+    private string FormattedCity
+    {
+        get => _partner.City;
+        set => _partner.City = CapitalizeEachWord(value);
+    }
+
+    private string FormattedProvince
+    {
+        get => _partner.Province;
+        set => _partner.Province = CapitalizeEachWord(value);
+    }
+
+    private string FormattedCountry
+    {
+        get => _partner.Country;
+        set => _partner.Country = CapitalizeEachWord(value);
+    }
+
+    private string FormattedBank
+    {
+        get => _partner.Bank;
+        set => _partner.Bank = CapitalizeEachWord(value);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPermissions();
+
+        if (!hasModuleAccess || !hasPermission)
+        {
+            isLoadingPermissions = false;
+            return;
+        }
+
+        if (_isEditMode)
+        {
+            var result = await PartnerApiClient.GetPartnerByIdAsync(Id.Value);
+            if (result.IsSuccess)
+            {
+                _partner = result.Data;
+            }
+            else
+            {
+                ToastService.ShowError($"Error al cargar socio: {result.ErrorMessage}");
+                NavigationManager.NavigateTo("/partners");
+            }
+        }
+        else
+        {
+            _partner.TypeOfAccount = Partner.AccountType.Ahorros;
+        }
+
+        isLoadingPermissions = false;
+    }
+
+    private async Task LoadPermissions()
+    {
+        try
+        {
+            var moduleAccessResult = await PermissionApiClient.HasPermissionAsync("Partner", "Access");
+            hasModuleAccess = moduleAccessResult.IsSuccess && moduleAccessResult.Data;
+
+            if (!hasModuleAccess)
+            {
+                return;
+            }
+
+            string requiredAction = _isEditMode ? "Edit" : "Create";
+            var actionResult = await PermissionApiClient.HasPermissionAsync("Partner", requiredAction);
+            hasPermission = actionResult.IsSuccess && actionResult.Data;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al verificar permisos: {ex.Message}");
+            hasModuleAccess = false;
+            hasPermission = false;
+        }
+    }
+
+    private async Task HandleSubmit()
+    {
+        if (_isEditMode)
+        {
+            _updateResponse = await PartnerApiClient.UpdatePartnerAsync(_partner);
+            if (_updateResponse.IsSuccess)
+            {
+                ToastService.ShowSuccess("Socio actualizado con éxito.");
+                NavigationManager.NavigateTo("/partners");
+            }
+            else
+            {
+                ToastService.ShowError(_updateResponse.ErrorMessage);
+            }
+        }
+        else
+        {
+            var dto = new PartnerForCreationDto
+            {
+                FirstName = _partner.FirstName,
+                LastName = _partner.LastName,
+                Cedula = _partner.Cedula,
+                Email = _partner.Email,
+                PhoneNumber = _partner.PhoneNumber,
+                Country = _partner.Country,
+                Province = _partner.Province,
+                City = _partner.City,
+                Address = _partner.Address,
+                Bank = _partner.Bank,
+                TypeOfAccount = _partner.TypeOfAccount,
+                AccountNumber = _partner.AccountNumber
+            };
+
+            _createResponse = await PartnerApiClient.AddPartnerAsync(dto);
+            if (_createResponse.IsSuccess)
+            {
+                ToastService.ShowSuccess("Socio agregado con éxito.");
+                NavigationManager.NavigateTo("/partners");
+            }
+            else
+            {
+                ToastService.ShowError(_createResponse.ErrorMessage);
+            }
+        }
+    }
+
+    private string CapitalizeEachWord(string input)
+    {
+        if (string.IsNullOrEmpty(input)) return input;
+        TextInfo textInfo = new CultureInfo("es-ES", false).TextInfo;
+        return textInfo.ToTitleCase(input.ToLower());
+    }
+
+    private void GoBackToList()
+    {
+        NavigationManager.NavigateTo("/partners");
+    }
+}

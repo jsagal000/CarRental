@@ -1,0 +1,101 @@
+﻿@using CarRental.Core.Models
+@using CarRental.Core.Models.Dtos
+@using CarRental.Web.Models
+@using CarRental.Web.Services
+@using Blazored.Toast.Services
+@using System.Text.Json
+@inject IVehicleSubResourceApiClient<Repair, RepairForCreationDto> ApiClient
+@inject IToastService ToastService
+@inject IJSRuntime JSRuntime
+
+<div class="p-4">
+    <h3 class="text-2xl font-bold text-gray-800 mb-6">@(Repair.Id == 0 ? "Añadir Nueva Reparación" : "Editar Reparación")</h3>
+
+    <EditForm Model="Repair" OnValidSubmit="HandleSubmit">
+        <DataAnnotationsValidator />
+
+        @if (_apiResponse != null && !_apiResponse.IsSuccess)
+        {
+            <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded relative mb-4" role="alert">
+                <strong class="font-bold">¡Error!</strong>
+                <span class="block sm:inline">@_apiResponse.ErrorMessage</span>
+                @if (_apiResponse.ValidationErrors != null)
+                {
+                    <ul class="list-disc ml-5 mt-2">
+                        @foreach (var error in _apiResponse.ValidationErrors.SelectMany(err => err.Value))
+                        {
+                            <li>@error</li>
+                        }
+                    </ul>
+                }
+            </div>
+        }
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Fecha:</label>
+                <InputDate @bind-Value="Repair.Date" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+                <ValidationMessage For="@(() => Repair.Date)" />
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Costo:</label>
+                <InputNumber @bind-Value="Repair.Cost" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+                <ValidationMessage For="@(() => Repair.Cost)" />
+            </div>
+            <div class="md:col-span-2">
+                <label class="block text-sm font-medium text-gray-700">Descripción:</label>
+                <InputTextArea @bind-Value="Repair.Description" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+                <ValidationMessage For="@(() => Repair.Description)" />
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Taller:</label>
+                <InputText @bind-Value="Repair.WorkshopName" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+                <ValidationMessage For="@(() => Repair.WorkshopName)" />
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Kilometraje:</label>
+                <InputNumber @bind-Value="Repair.Mileage" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+                <ValidationMessage For="@(() => Repair.Mileage)" />
+            </div>
+        </div>
+
+        <div class="flex justify-end space-x-4 pt-6">
+            <button type="button" @onclick="() => OnSaveOrCancel.InvokeAsync()" class="px-4 py-2 bg-gray-200 text-gray-800 rounded-md hover:bg-gray-400 transition duration-300 ease-in-out shadow-md font-semibold">Cancelar</button>
+            <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition duration-300 ease-in-out shadow-md font-semibold">Guardar</button>
+        </div>
+    </EditForm>
+</div>
+
+@code {
+    [Parameter] public Repair Repair { get; set; }
+    [Parameter] public EventCallback OnSaveOrCancel { get; set; }
+
+    private ApiResponse _apiResponse;
+
+    private async Task HandleSubmit()
+    {
+        if (Repair.Id == 0)
+        {
+            var dto = new RepairForCreationDto
+            {
+                Date = Repair.Date,
+                Description = Repair.Description,
+                Cost = Repair.Cost,
+                WorkshopName = Repair.WorkshopName,
+                Mileage = Repair.Mileage,
+                IsWarranty = Repair.IsWarranty
+            };
+            _apiResponse = await ApiClient.CreateAsync(Repair.VehicleId, dto);
+        }
+        else
+        {
+            _apiResponse = await ApiClient.UpdateAsync(Repair.Id, Repair);
+        }
+
+        if (_apiResponse.IsSuccess)
+        {
+            ToastService.ShowSuccess("¡Guardado con éxito!");
+            await OnSaveOrCancel.InvokeAsync();
+        }
+    }
+}

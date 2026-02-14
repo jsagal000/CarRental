@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>CarRental.Web</title>
+    <base href="/" />
+    <link rel="stylesheet" href="css/bootstrap/bootstrap.min.css" />
+    <link rel="stylesheet" href="css/app.css" />
+    <link href="css/app.min.css" rel="stylesheet" />
+    <link href="css/app.tailwind.css" rel="stylesheet" />
+    <link href="CarRental.Web.styles.css" rel="stylesheet" />
+    <link rel="icon" type="image/png" href="favicon.png" />
+    <link href="manifest.webmanifest" rel="manifest" />
+    <link rel="apple-touch-icon" sizes="512x512" href="icon-512.png" />
+    <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png" />
+
+    <!-- SweetAlert2 CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
+
+    <!-- FIX ESPECÍFICO: Solo arreglar botones, no tocar el modal -->
+    <style>
+        /* Solo arreglamos los BOTONES del modal, no el contenedor */
+        .swal2-actions > button.swal2-styled {
+            /* Restaurar padding que Tailwind elimina */
+            padding: 0.625em 1.1em !important;
+            /* Restaurar margin */
+            margin: 0.3125em !important;
+            /* Asegurar visibilidad */
+            display: inline-block !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+            /* Texto */
+            font-size: 1em !important;
+            font-weight: 500 !important;
+            color: #fff !important;
+            /* Bordes */
+            border: 0 !important;
+            border-radius: 0.25em !important;
+            /* Cursor */
+            cursor: pointer !important;
+        }
+
+            /* Botón confirmar - color azul por defecto */
+            .swal2-actions > button.swal2-styled.swal2-confirm {
+                background-color: #7066e0 !important;
+            }
+
+            /* Botón cancelar - color gris */
+            .swal2-actions > button.swal2-styled.swal2-cancel {
+                background-color: #6e7881 !important;
+            }
+
+            /* Botón denegar (si se usa) */
+            .swal2-actions > button.swal2-styled.swal2-deny {
+                background-color: #dc3741 !important;
+            }
+
+            /* Hover effect */
+            .swal2-actions > button.swal2-styled:hover {
+                background-image: linear-gradient(rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.1)) !important;
+            }
+
+            /* Focus effect */
+            .swal2-actions > button.swal2-styled:focus {
+                outline: none !important;
+                box-shadow: 0 0 0 3px rgba(100, 150, 200, 0.5) !important;
+            }
+
+        /* NO tocamos .swal2-actions, .swal2-popup, .swal2-container
+           para que mantengan su tamaño y posición original */
+    </style>
+
+    <!-- Carga de Plotly.js para gráficos -->
+    <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <!-- Carga de jsPDF para exportación a PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+</head>
+
+<body>
+    <div id="app">
+        <div class="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+            <div class="text-center">
+                <div class="mb-4">
+                    <svg class="animate-spin h-12 w-12 text-blue-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </div>
+                <p class="text-gray-700 text-lg font-medium">Cargando aplicación...</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="blazor-error-ui" class="fixed bottom-0 right-0 m-4 p-4 bg-red-100 border border-red-400 text-red-700 rounded-lg shadow-lg" style="display: none;">
+        <div class="flex items-center">
+            <svg class="w-6 h-6 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+            </svg>
+            <span>Ha ocurrido un error.</span>
+            <a href="" class="underline ml-2 reload">Recargar</a>
+            <a class="ml-4 cursor-pointer dismiss" onclick="document.getElementById('blazor-error-ui').style.display='none'">✕</a>
+        </div>
+    </div>
+
+    <script src="_framework/blazor.webassembly.js"></script>
+
+    <!-- SweetAlert2 JS -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <!-- Configuración de SweetAlert2 -->
+    <script>
+        // Exponer SweetAlert2 globalmente
+        window.Swal = Swal;
+
+        // Configuración de Toast (notificaciones pequeñas)
+        const Toast = Swal.mixin({
+            toast: true,
+            position: 'top-end',
+            showConfirmButton: false,
+            timer: 3000,
+            timerProgressBar: true,
+            didOpen: (toast) => {
+                toast.addEventListener('mouseenter', Swal.stopTimer);
+                toast.addEventListener('mouseleave', Swal.resumeTimer);
+            }
+        });
+
+        window.Toast = Toast;
+
+        // FIX MÍNIMO: Solo forzar display de botones si están ocultos
+        const observer = new MutationObserver(() => {
+            // Solo intervenir si los botones están ocultos
+            const buttons = document.querySelectorAll('.swal2-actions > button.swal2-styled');
+            buttons.forEach(btn => {
+                if (btn.style.display === 'none' || btn.style.display === '') {
+                    btn.style.display = 'inline-block';
+                }
+                if (btn.style.opacity === '0') {
+                    btn.style.opacity = '1';
+                }
+                if (btn.style.visibility === 'hidden') {
+                    btn.style.visibility = 'visible';
+                }
+            });
+        });
+
+        // Iniciar observer
+        observer.observe(document.body, {
+            childList: true,
+            subtree: true,
+            attributes: true,
+            attributeFilter: ['style']
+        });
+    </script>
+
+    <!-- Función de descarga de PDF desde byte array -->
+    <script>
+        window.downloadFileFromByteArray = async function (fileName, byteArray) {
+            try {
+                console.log('[JS] downloadFileFromByteArray - fileName:', fileName);
+                console.log('[JS] downloadFileFromByteArray - bytes:', byteArray.length);
+
+                const blob = new Blob([byteArray], { type: 'application/pdf' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = fileName;
+
+                document.body.appendChild(link);
+                link.click();
+
+                setTimeout(() => {
+                    document.body.removeChild(link);
+                    URL.revokeObjectURL(url);
+                    console.log('[JS] PDF descargado exitosamente');
+                }, 100);
+
+            } catch (error) {
+                console.error('[JS ERROR]', error);
+            }
+        };
+    </script>
+
+    <!-- Service Worker -->
+    <script>navigator.serviceWorker.register('service-worker.js');</script>
+
+    <!-- App.js -->
+    <script src="js/app.js"></script>
+
+    <!-- Funciones de impresión y descarga -->
+    <script>
+        window.printReport = function (htmlContent) {
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(htmlContent);
+            printWindow.document.close();
+            printWindow.focus();
+            printWindow.print();
+        };
+
+        window.downloadFile = function (content, fileName, contentType) {
+            const blob = new Blob([content], { type: contentType });
+            const url = window.URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            window.URL.revokeObjectURL(url);
+        };
+    </script>
+
+</body>
+
+</html>

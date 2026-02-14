@@ -1,0 +1,417 @@
+﻿@page "/vehicles/details/{Id:int}"
+@using CarRental.Core.Models
+@using CarRental.Web.Enums
+@using CarRental.Web.Services
+@using Blazored.Toast.Services
+@using CarRental.Web.Shared
+
+@inject VehicleApiClient VehicleApiClient
+@inject PermissionApiClient PermissionApiClient
+@inject NavigationManager NavigationManager
+@inject IToastService ToastService
+@inject HttpClient HttpClient
+
+<div class="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4 font-sans">
+    <div class="max-w-4xl mx-auto">
+
+        <nav class="mb-6">
+            <ol class="flex items-center space-x-2 text-sm text-gray-600">
+                <li><a href="/vehicles" class="hover:text-blue-600 transition-colors">Vehículos</a></li>
+                <li><span class="mx-2">›</span></li>
+                <li class="text-gray-900 font-medium">Información del Vehículo</li>
+            </ol>
+        </nav>
+
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-900">Información del Vehículo</h1>
+        </div>
+
+        @if (isLoadingPermissions || isLoading)
+        {
+            <div class="bg-white rounded-2xl shadow-lg p-8">
+                <div class="flex flex-col items-center justify-center space-y-4">
+                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                    <p class="text-gray-600 text-lg">@(isLoadingPermissions ? "Validando permisos..." : "Cargando información del vehículo...")</p>
+                </div>
+            </div>
+        }
+        else if (!hasModuleAccess)
+        {
+            <div class="bg-white rounded-2xl shadow-lg p-8">
+                <div class="flex flex-col items-center justify-center space-y-4">
+                    <p class="text-gray-800 text-lg">Acceso no autorizado</p>
+                    <p class="text-gray-600 text-sm">No tienes acceso al módulo de Vehículos</p>
+                    <button @onclick="GoBackToList" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
+                        Volver al inicio
+                    </button>
+                </div>
+            </div>
+        }
+        else if (!canView)
+        {
+            <div class="bg-white rounded-2xl shadow-lg p-8">
+                <div class="flex flex-col items-center justify-center space-y-4">
+                    <p class="text-gray-800 text-lg">Acceso no autorizado</p>
+                    <p class="text-gray-600 text-sm">No tienes permisos para ver los detalles de vehículos</p>
+                    <button @onclick="GoBackToList" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
+                        Volver a la lista
+                    </button>
+                </div>
+            </div>
+        }
+        else if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <div class="bg-white rounded-2xl shadow-lg p-8">
+                <div class="flex flex-col items-center justify-center space-y-4">
+                    <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                        <span class="text-2xl">⚠️</span>
+                    </div>
+                    <div class="text-center">
+                        <h3 class="text-lg font-semibold text-red-800 mb-2">Error al cargar los datos</h3>
+                        <p class="text-red-600">@_errorMessage</p>
+                    </div>
+                    <button @onclick="GoBackToList" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
+                        Volver a la lista
+                    </button>
+                </div>
+            </div>
+        }
+        else if (_vehicle != null)
+        {
+            <div>
+                <div class="border-b border-gray-200">
+                    <nav class="-mb-px flex space-x-4" aria-label="Tabs">
+                        <button @onclick="@(() => SetActiveTab("Detalles"))" class="@GetTabClass("Detalles")">Detalles</button>
+                        <button @onclick="@(() => SetActiveTab("Seguros"))" class="@GetTabClass("Seguros")">Seguros</button>
+                        <button @onclick="@(() => SetActiveTab("Mantenimientos"))" class="@GetTabClass("Mantenimientos")">Mantenimientos</button>
+                        <button @onclick="@(() => SetActiveTab("Reparaciones"))" class="@GetTabClass("Reparaciones")">Reparaciones</button>
+                    </nav>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-2xl shadow-lg overflow-hidden space-y-6">
+                @if (_activeTab == "Detalles")
+                {
+                    <div class="px-6 py-4">
+                        <h2 class="text-xl font-semibold text-gray-800 mb-4">Información del Vehículo</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8">
+                            @DisplayItem("Marca", _vehicle.Make)
+                            @DisplayItem("Modelo", _vehicle.Model)
+                            @DisplayItem("Tipo", _vehicle.Type.ToString())
+                            @DisplayItem("Año", _vehicle.Year.ToString())
+                            @DisplayItem("Matrícula", _vehicle.LicensePlate)
+                            @DisplayItem("VIN", _vehicle.Vin)
+                            @DisplayItem("Color", _vehicle.Color)
+                            @DisplayItem("Tarifa Diaria", _vehicle.DailyRate.ToString("C"))
+                            @DisplayItem("Estado", _vehicle.State.ToString())
+                        </div>
+
+                        @if (_vehicle.Ownership.HasValue)
+                        {
+                            <div class="mt-8 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                                <h3 class="text-lg font-semibold text-gray-800 mb-4">Información del Propietario</h3>
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-y-4 gap-x-8">
+                                    @DisplayItem("Vehículo pertenece", _vehicle.Ownership.ToString())
+
+                                    @if (_vehicle.Ownership == Vehicle.OwnershipType.Socio && _vehicle.Partner != null)
+                                    {
+                                        @DisplayItem("Socio", $"{_vehicle.Partner.FirstName} {_vehicle.Partner.LastName}")
+                                    }
+                                </div>
+
+                                @if (_vehicle.Ownership == Vehicle.OwnershipType.Socio && _vehicle.Partner != null)
+                                {
+                                    <div class="mt-4">
+                                        <a href="/partners/details/@_vehicle.Partner.Id"
+                                           class="inline-flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                                            Información socio
+                                        </a>
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="mt-8 p-4 bg-gray-50 rounded-lg border border-gray-200">
+                                <p class="text-gray-600 text-center">No se ha especificado el propietario de este vehículo.</p>
+                            </div>
+                        }
+                    </div>
+
+                    <div class="px-6 pb-6">
+                        <h2 class="text-xl font-semibold text-gray-800 mb-4">Fotos del Vehículo</h2>
+                        @if (_vehicle.ImageUrls != null && _vehicle.ImageUrls.Any())
+                        {
+                            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                                @foreach (var imageUrl in _vehicle.ImageUrls)
+                                {
+                                    <div class="relative w-full h-48 rounded-lg overflow-hidden shadow-md">
+                                        @{
+                                            var fullImageUrl = new Uri(HttpClient.BaseAddress, imageUrl).ToString();
+                                        }
+                                        <img src="@fullImageUrl" alt="Imagen del vehículo"
+                                             class="w-full h-full object-cover"
+                                             onerror="this.onerror=null;this.src='https://placehold.co/400x300/CCCCCC/333333?text=No+Image';" />
+                                    </div>
+                                }
+                            </div>
+                        }
+                        else
+                        {
+                            <p class="text-gray-500 text-center">No hay fotos disponibles para este vehículo.</p>
+                        }
+                    </div>
+
+                    <div class="bg-gray-50 px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
+                        <button @onclick="GoBackToList" class="px-6 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors">
+                            Volver a la lista
+                        </button>
+                        @if (canEdit)
+                        {
+                            <a href="/vehicles/edit/@_vehicle.Id" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                                Editar Vehículo
+                            </a>
+                        }
+                    </div>
+                }
+                @if (_activeTab == "Seguros")
+                {
+                    @if (_policyForEditing == null)
+                    {
+                        <InsuranceManager @ref="_insuranceManager"
+                                          VehicleId="Id"
+                                          OnAddRequest="HandleAddRequest"
+                                          OnEditRequest="HandleEditRequest" />
+                    }
+                    else
+                    {
+                        <InsurancePolicyForm Policy="_policyForEditing"
+                                             OnSaveOrCancel="HandleFormClosed" />
+                    }
+                }
+                @if (_activeTab == "Mantenimientos")
+                {
+                    @if (_maintenanceForEditing == null)
+                    {
+                        <MaintenanceManager @ref="_maintenanceManager"
+                                            VehicleId="Id"
+                                            OnAddRequest="HandleAddMaintenanceRequest"
+                                            OnEditRequest="HandleEditMaintenanceRequest" />
+                    }
+                    else
+                    {
+                        <MaintenanceForm Maintenance="_maintenanceForEditing"
+                                         OnSaveOrCancel="HandleMaintenanceFormClosed" />
+                    }
+                }
+                @if (_activeTab == "Reparaciones")
+                {
+                    @if (_repairForEditing == null)
+                    {
+                        <RepairManager @ref="_repairManager"
+                                       VehicleId="Id"
+                                       OnAddRequest="HandleAddRepairRequest"
+                                       OnEditRequest="HandleEditRepairRequest" />
+                    }
+                    else
+                    {
+                        <RepairForm Repair="_repairForEditing"
+                                    OnSaveOrCancel="HandleRepairFormClosed" />
+                    }
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter]
+    public int Id { get; set; }
+    [Parameter][SupplyParameterFromQuery] public string? Tab { get; set; }
+
+    private Vehicle _vehicle;
+    private string _errorMessage = string.Empty;
+    private bool isLoading = true;
+    private bool isLoadingPermissions = true;
+    private string _activeTab = "Detalles";
+
+    private bool hasModuleAccess = false;
+    private bool canView = false;
+    private bool canEdit = false;
+
+    private InsurancePolicy _policyForEditing;
+    private Maintenance _maintenanceForEditing;
+    private Repair _repairForEditing;
+
+    private InsuranceManager _insuranceManager;
+    private MaintenanceManager _maintenanceManager;
+    private RepairManager _repairManager;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadPermissions();
+
+        if (hasModuleAccess && canView)
+        {
+            await LoadVehicleData();
+        }
+
+        isLoadingPermissions = false;
+    }
+
+    private async Task LoadPermissions()
+    {
+        try
+        {
+            var moduleAccessResult = await PermissionApiClient.HasPermissionAsync("Vehicle", "Access");
+            hasModuleAccess = moduleAccessResult.IsSuccess && moduleAccessResult.Data;
+
+            if (!hasModuleAccess)
+            {
+                return;
+            }
+
+            var viewResult = await PermissionApiClient.HasPermissionAsync("Vehicle", "View");
+            canView = viewResult.IsSuccess && viewResult.Data;
+
+            var editResult = await PermissionApiClient.HasPermissionAsync("Vehicle", "Edit");
+            canEdit = editResult.IsSuccess && editResult.Data;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar permisos: {ex.Message}");
+            hasModuleAccess = false;
+        }
+    }
+
+    private void HandleAddRequest()
+    {
+        _policyForEditing = new InsurancePolicy { VehicleId = Id };
+    }
+
+    private void HandleEditRequest(InsurancePolicy policy)
+    {
+        _policyForEditing = policy;
+    }
+
+    private async Task HandleFormClosed()
+    {
+        _policyForEditing = null;
+        if (_insuranceManager != null)
+        {
+            await _insuranceManager.LoadPolicies();
+        }
+    }
+
+    protected override void OnParametersSet()
+    {
+        _activeTab = Tab switch
+        {
+            "Seguros" => "Seguros",
+            "Mantenimientos" => "Mantenimientos",
+            "Reparaciones" => "Reparaciones",
+            _ => "Detalles"
+        };
+    }
+
+    private void HandleAddMaintenanceRequest() => _maintenanceForEditing = new Maintenance { VehicleId = Id };
+    private void HandleEditMaintenanceRequest(Maintenance maintenance) => _maintenanceForEditing = maintenance;
+    private async Task HandleMaintenanceFormClosed()
+    {
+        _maintenanceForEditing = null;
+        if (_maintenanceManager != null) await _maintenanceManager.LoadMaintenances();
+    }
+
+    private void HandleAddRepairRequest() => _repairForEditing = new Repair { VehicleId = Id };
+    private void HandleEditRepairRequest(Repair repair) => _repairForEditing = repair;
+    private async Task HandleRepairFormClosed()
+    {
+        _repairForEditing = null;
+        if (_repairManager != null) await _repairManager.LoadRepairs();
+    }
+
+    private async Task LoadVehicleData()
+    {
+        try
+        {
+            isLoading = true;
+            _errorMessage = string.Empty;
+
+            if (Id <= 0)
+            {
+                _errorMessage = "ID de vehículo no válido.";
+                ToastService.ShowError(_errorMessage);
+                NavigationManager.NavigateTo("/vehicles");
+                return;
+            }
+
+            var result = await VehicleApiClient.GetVehicleByIdAsync(Id);
+
+            if (result.IsSuccess && result.Data != null)
+            {
+                _vehicle = result.Data;
+                if (_vehicle.ImageUrls == null)
+                {
+                    _vehicle.ImageUrls = new List<string>();
+                }
+            }
+            else
+            {
+                _errorMessage = $"Error al cargar los detalles: {result.ErrorMessage ?? "Vehículo no encontrado"}";
+                ToastService.ShowError(_errorMessage);
+                await Task.Delay(2000);
+                NavigationManager.NavigateTo("/vehicles");
+            }
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error inesperado: {ex.Message}";
+            ToastService.ShowError(_errorMessage);
+        }
+        finally
+        {
+            isLoading = false;
+        }
+    }
+
+    private void SetActiveTab(string tabName)
+    {
+        if (_activeTab != tabName)
+        {
+            NavigationManager.NavigateTo($"/vehicles/details/{Id}?tab={tabName}");
+        }
+    }
+
+    private string GetTabClass(string tabName)
+    {
+        bool isActive = _activeTab == tabName;
+        string baseClasses = "whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm transition-colors duration-200";
+        string activeClasses = "border-blue-500 text-blue-600";
+        string inactiveClasses = "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300";
+
+        return $"{baseClasses} {(isActive ? activeClasses : inactiveClasses)}";
+    }
+
+    private void GoBackToList()
+    {
+        NavigationManager.NavigateTo("/vehicles");
+    }
+
+    RenderFragment DisplayItem(string label, string value, bool isRawHtml = false) => builder =>
+    {
+        builder.OpenElement(0, "div");
+        builder.AddAttribute(1, "class", "space-y-1 pb-3");
+        builder.OpenElement(2, "p");
+        builder.AddAttribute(3, "class", "text-sm text-gray-500");
+        builder.AddContent(4, label);
+        builder.CloseElement();
+        builder.OpenElement(5, "p");
+        builder.AddAttribute(6, "class", "text-gray-900 font-medium");
+        if (isRawHtml)
+            builder.AddMarkupContent(7, value);
+        else
+            builder.AddContent(7, value);
+        builder.CloseElement();
+        builder.CloseElement();
+    };
+}
