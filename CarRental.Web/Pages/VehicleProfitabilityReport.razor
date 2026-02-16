@@ -244,8 +244,6 @@
 
             vehicles = vehiclesTask.Result.IsSuccess ? vehiclesTask.Result.Data : new List<Vehicle>();
             partners = partnersTask.Result.IsSuccess ? partnersTask.Result.Data : new List<Partner>();
-
-            Console.WriteLine($"[DEBUG] Loaded {vehicles.Count} vehicles and {partners.Count} partners");
         }
         catch (Exception ex)
         {
@@ -281,8 +279,6 @@
                 .Where(r => r.Status == Rental.RentalStatus.Completado || r.Status == Rental.RentalStatus.Activo)
                 .Where(r => DoesRentalIntersectPeriod(r, StartDate, EndDate))
                 .ToList();
-
-            Console.WriteLine($"[DEBUG] Found {relevantRentals.Count} rentals intersecting period {StartDate:yyyy-MM-dd} to {EndDate:yyyy-MM-dd}");
 
             if (!relevantRentals.Any())
             {
@@ -343,7 +339,6 @@
 
             if (vehicle == null)
             {
-                Console.WriteLine($"[WARNING] Vehicle not found for ID: {vehicleId}");
                 continue;
             }
 

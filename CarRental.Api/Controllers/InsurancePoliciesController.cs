@@ -81,7 +81,6 @@ namespace CarRental.Api.Controllers
             return NoContent();
         }
 
-        // --- MÉTODOS SIN CAMBIOS ---
         [HttpGet("insurancepolicies/{policyId}", Name = "GetPolicyById")]
         public async Task<IActionResult> GetPolicyById(int policyId)
         {

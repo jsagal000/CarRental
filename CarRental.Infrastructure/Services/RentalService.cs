@@ -167,7 +167,9 @@ namespace CarRental.Infrastructure.Services
             }
         }
 
-        // ✅ NUEVO MÉTODO: Generar PDF del contrato
+        /// <summary>
+        /// Generates a PDF contract document for a rental
+        /// </summary>
         public async Task<ApiResult<byte[]>> GenerateRentalContractPdfAsync(int rentalId)
         {
             try

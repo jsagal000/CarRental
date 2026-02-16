@@ -56,7 +56,6 @@ namespace CarRental.Infrastructure.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Error al generar número de contrato: {ex.Message}");
                 return $"CONT-{DateTime.Now.Year}-ERROR";
             }
         }

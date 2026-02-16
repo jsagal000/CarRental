@@ -24,13 +24,11 @@ namespace CarRental.Infrastructure.Repositories
                 await context.AuditLogs.AddAsync(auditLog);
                 await context.SaveChangesAsync();
 
-                Console.WriteLine($"[AUDIT REPO] Log guardado ID: {auditLog.Id}");
 
                 return auditLog;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[AUDIT REPO ERROR] {ex.Message}");
                 throw;
             }
         }

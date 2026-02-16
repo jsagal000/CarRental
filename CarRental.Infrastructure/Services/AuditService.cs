@@ -22,28 +22,14 @@ namespace CarRental.Infrastructure.Services
         {
             try
             {
-                Console.WriteLine("=================================================");
-                Console.WriteLine($"[AUDIT DEBUG] INICIO - LogActionAsync llamado");
-                Console.WriteLine($"[AUDIT DEBUG] UserId: {userId}");
-                Console.WriteLine($"[AUDIT DEBUG] Module: {module}");
-                Console.WriteLine($"[AUDIT DEBUG] Action: {action}");
-
                 // FILTRO: Solo auditar acciones que modifican datos o accesos críticos
                 if (!ShouldAudit(module, action))
                 {
-                    Console.WriteLine($"[AUDIT] Acción '{action}' en módulo '{module}' NO requiere auditoría - OMITIDA");
-                    Console.WriteLine("=================================================");
                     return;
                 }
 
-                Console.WriteLine($"[AUDIT DEBUG] Acción '{action}' SERÁ AUDITADA");
-                Console.WriteLine($"[AUDIT DEBUG] EntityId: {entityId}");
-                Console.WriteLine($"[AUDIT DEBUG] Description: {description}");
-                Console.WriteLine("=================================================");
-
                 if (userId <= 0)
                 {
-                    Console.WriteLine($"[AUDIT ERROR] UserId inválido: {userId}. No se guardará el log.");
                     return;
                 }
 
@@ -64,26 +50,12 @@ namespace CarRental.Infrastructure.Services
                     CreatedAt = DateTime.UtcNow
                 };
 
-                Console.WriteLine($"[AUDIT DEBUG] Objeto AuditLog creado correctamente");
-                Console.WriteLine($"[AUDIT DEBUG] Llamando a _auditRepository.AddAsync...");
-
                 var result = await _auditRepository.AddAsync(auditLog);
-
-                Console.WriteLine($"[AUDIT DEBUG] ✓✓✓ Log guardado con ID: {result.Id}");
-                Console.WriteLine("=================================================");
             }
             catch (Exception ex)
             {
-                Console.WriteLine("=================================================");
-                Console.WriteLine($"[AUDIT ERROR] ✗✗✗ ERROR CRÍTICO AL GUARDAR LOG");
-                Console.WriteLine($"[AUDIT ERROR] Message: {ex.Message}");
-                Console.WriteLine($"[AUDIT ERROR] StackTrace: {ex.StackTrace}");
-                if (ex.InnerException != null)
-                {
-                    Console.WriteLine($"[AUDIT ERROR] InnerException: {ex.InnerException.Message}");
-                    Console.WriteLine($"[AUDIT ERROR] InnerException StackTrace: {ex.InnerException.StackTrace}");
-                }
-                Console.WriteLine("=================================================");
+                // Log error silently or use proper logging framework
+                // TODO: Implement proper logging (ILogger)
             }
         }
 
@@ -135,11 +107,9 @@ namespace CarRental.Infrastructure.Services
         {
             try
             {
-                Console.WriteLine($"[AUDIT QUERY] Consultando logs con filtros: Module={filter.Module}, Action={filter.Action}, Page={filter.Page}");
 
                 var pagedResult = await _auditRepository.GetPagedAsync(filter);
 
-                Console.WriteLine($"[AUDIT QUERY] Registros encontrados: {pagedResult.TotalCount}");
 
                 var auditLogDtos = pagedResult.Items.Select(al => new AuditLogDto
                 {
@@ -173,7 +143,6 @@ namespace CarRental.Infrastructure.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[AUDIT QUERY ERROR] {ex.Message}");
                 return ServiceResult<PagedResult<AuditLogDto>>.Failure($"Error al obtener registros de auditoría: {ex.Message}");
             }
         }

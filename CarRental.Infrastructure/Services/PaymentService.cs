@@ -1,7 +1,4 @@
-﻿// CarRental.Infrastructure/Services/PaymentService.cs
-// AGREGAR VALIDACIÓN EN EL MÉTODO AddPaymentAsync
-
-using CarRental.Core.Interfaces;
+﻿using CarRental.Core.Interfaces;
 using CarRental.Core.Models;
 using CarRental.Infrastructure.Interfaces;
 using System;

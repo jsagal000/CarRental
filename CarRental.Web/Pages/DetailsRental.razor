@@ -373,7 +373,6 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error al cargar permisos: {ex.Message}");
             hasModuleAccess = false;
         }
     }
@@ -435,7 +434,6 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error al cargar pagos: {ex.Message}");
             payments = new List<Payment>();
         }
     }
@@ -453,7 +451,6 @@
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error al cargar saldo: {ex.Message}");
         }
     }
 

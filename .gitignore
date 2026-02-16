@@ -49,3 +49,17 @@ node_modules/
 # Otros
 *.cache
 *.log
+*.tmp
+
+# Uploads de imágenes y archivos (no versionar contenido subido por usuarios)
+**/Uploads/**
+!**/Uploads/.gitkeep
+**/wwwroot/Uploads/**
+!**/wwwroot/Uploads/.gitkeep
+
+# Archivos temporales de desarrollo
+*.bak
+*.backup
+*.old
+*Copy*
+*copy*

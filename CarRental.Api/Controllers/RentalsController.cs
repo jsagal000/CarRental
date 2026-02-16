@@ -467,10 +467,6 @@ namespace CarRental.Api.Controllers
                 return StatusCode(500, "Error interno del servidor");
             }
         }
-
-        // CarRental.Api/Controllers/RentalsController.cs
-        // REEMPLAZAR EL MÉTODO FinalizeRental
-
         [HttpPost("{id}/finalize")]
         [RequirePermission("Rental", "Edit")]
         public async Task<ActionResult<ApiResult<Rental>>> FinalizeRental(int id)
@@ -914,10 +910,6 @@ namespace CarRental.Api.Controllers
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
             return userIdClaim != null && int.TryParse(userIdClaim.Value, out int userId) ? userId : 0;
         }
-
-        // CarRental.Api/Controllers/RentalsController.cs - AGREGAR ESTE MÉTODO
-
-        // Agregar este método al RentalsController existente
 
         [HttpPost("{id}/cancel")]
         [RequirePermission("Rental", "Edit")]

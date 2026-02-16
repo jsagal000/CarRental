@@ -106,7 +106,9 @@ namespace CarRental.Infrastructure.Repositories
             }
         }
 
-        // MÉTODO NUEVO: Crear permisos en lote
+        /// <summary>
+        /// Creates multiple permissions in a single transaction
+        /// </summary>
         public async Task CreateBulkAsync(List<Permission> permissions)
         {
             await _context.Permissions.AddRangeAsync(permissions);
