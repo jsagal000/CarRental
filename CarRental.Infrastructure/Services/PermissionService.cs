@@ -35,6 +35,43 @@ namespace CarRental.Infrastructure.Services
             }
         }
 
+        public async Task<ServiceResult<ModulePermissionsDto>> GetModulePermissionsAsync(int userId, string module)
+        {
+            try
+            {
+                // Verificar acceso al módulo primero
+                var hasAccess = await _permissionRepository.HasPermissionAsync(userId, module, "Access");
+
+                if (!hasAccess)
+                {
+                    return ServiceResult<ModulePermissionsDto>.Success(new ModulePermissionsDto());
+                }
+
+                // Verificar todas las acciones EN PARALELO (una sola vez a la BD por acción)
+                var viewTask   = _permissionRepository.HasPermissionAsync(userId, module, "View");
+                var createTask = _permissionRepository.HasPermissionAsync(userId, module, "Create");
+                var editTask   = _permissionRepository.HasPermissionAsync(userId, module, "Edit");
+                var deleteTask = _permissionRepository.HasPermissionAsync(userId, module, "Delete");
+
+                await Task.WhenAll(viewTask, createTask, editTask, deleteTask);
+
+                var result = new ModulePermissionsDto
+                {
+                    HasAccess = true,
+                    CanView   = viewTask.Result,
+                    CanCreate = createTask.Result,
+                    CanEdit   = editTask.Result,
+                    CanDelete = deleteTask.Result
+                };
+
+                return ServiceResult<ModulePermissionsDto>.Success(result);
+            }
+            catch (Exception ex)
+            {
+                return ServiceResult<ModulePermissionsDto>.Failure($"Error al obtener permisos del módulo: {ex.Message}");
+            }
+        }
+
         public async Task<ServiceResult<List<PermissionDto>>> GetAllPermissionsAsync()
         {
             try

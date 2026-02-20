@@ -86,6 +86,7 @@ builder.Services.AddScoped<IPaymentService, PaymentService>();
 builder.Services.AddScoped<IPdfGeneratorService, PdfGeneratorService>();
 builder.Services.AddScoped<ICompanySettingsService, CompanySettingsService>();
 builder.Services.AddScoped<ContractNumberService>();
+builder.Services.AddScoped<RentalStatusUpdateService>();
 
 // Servicios para el sistema de permisos y auditoría
 builder.Services.AddScoped<IPermissionService, PermissionService>();

@@ -97,6 +97,9 @@ namespace CarRental.Web.Services
             // Limpiar permisos
             _permissions.Clear();
             _permissionsLoaded = false;
+            
+            // ✅ Limpiar cache de permisos de módulos (método estático)
+            PermissionApiClient.ClearCache();
 
             await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", "authToken");
             await _jsRuntime.InvokeVoidAsync("localStorage.removeItem", "currentUser");

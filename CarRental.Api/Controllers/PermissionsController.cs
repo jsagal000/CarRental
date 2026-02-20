@@ -148,6 +148,23 @@ namespace CarRental.Api.Controllers
             return Ok(ApiResult<bool>.Success(result.Data));
         }
 
+        // ✅ NUEVO: Obtiene todos los permisos de un módulo en una sola llamada
+        [HttpGet("module/{module}")]
+        public async Task<ActionResult<ApiResult<ModulePermissionsDto>>> GetModulePermissions(string module)
+        {
+            var currentUserId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "0");
+
+            if (currentUserId == 0)
+                return BadRequest(ApiResult<ModulePermissionsDto>.Failure("Usuario no autenticado"));
+
+            var result = await _permissionService.GetModulePermissionsAsync(currentUserId, module);
+
+            if (!result.IsSuccess)
+                return BadRequest(ApiResult<ModulePermissionsDto>.Failure(result.ErrorMessage));
+
+            return Ok(ApiResult<ModulePermissionsDto>.Success(result.Data));
+        }
+
         [HttpPost("initialize")]
         [RequirePermission("Permission", "Manage")]
         public async Task<ActionResult<ApiResult<bool>>> InitializeDefaultPermissions()

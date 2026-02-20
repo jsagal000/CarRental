@@ -4,6 +4,7 @@ using CarRental.Core.Interfaces;
 using CarRental.Core.Models;
 using CarRental.Core.Models.Dtos;
 using CarRental.Infrastructure.Data;
+using CarRental.Infrastructure.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -19,16 +20,22 @@ namespace CarRental.Api.Controllers
     {
         private readonly CarRentalDbContext _context;
         private readonly IRentalService _rentalService;
+        private readonly RentalStatusUpdateService _rentalStatusUpdateService;
         private readonly IAuditService _auditService;
         private readonly ILogger<RentalsController> _logger;
 
-        public RentalsController(IRentalService rentalService, ILogger<RentalsController> logger,
-            CarRentalDbContext context, IAuditService auditService)
+        public RentalsController(
+            IRentalService rentalService,
+            ILogger<RentalsController> logger,
+            CarRentalDbContext context,
+            IAuditService auditService,
+            RentalStatusUpdateService rentalStatusUpdateService)
         {
             _rentalService = rentalService;
             _logger = logger;
             _context = context;
             _auditService = auditService;
+            _rentalStatusUpdateService = rentalStatusUpdateService;
         }
 
         [HttpGet]
@@ -737,33 +744,8 @@ namespace CarRental.Api.Controllers
 
             try
             {
-                var today = DateTime.Today;
-                var updatedCount = 0;
-
-                var reservedToActive = await _context.Rentals
-                    .Where(r => r.Status == Rental.RentalStatus.Reservado && r.StartDate.Date == today)
-                    .ToListAsync();
-
-                foreach (var rental in reservedToActive)
-                {
-                    rental.Status = Rental.RentalStatus.Activo;
-                    await UpdateVehicleStatus(rental.VehicleId, Rental.RentalStatus.Activo);
-                    updatedCount++;
-                }
-
-                var activeToOverdue = await _context.Rentals
-                    .Where(r => r.Status == Rental.RentalStatus.Activo &&
-                               r.EndDate.Date < today &&
-                               r.ActualReturnDate == null)
-                    .ToListAsync();
-
-                foreach (var rental in activeToOverdue)
-                {
-                    rental.Status = Rental.RentalStatus.Vencido;
-                    updatedCount++;
-                }
-
-                await _context.SaveChangesAsync();
+                // Usar el servicio de actualización
+                var updatedCount = await _rentalStatusUpdateService.UpdateRentalStatusesAsync();
 
                 await _auditService.LogActionAsync(
                     userId: userId,
@@ -775,7 +757,7 @@ namespace CarRental.Api.Controllers
                 );
 
                 _logger.LogInformation("Updated {Count} rental statuses", updatedCount);
-                return Ok(new { UpdatedRentals = updatedCount, Message = "Rental statuses updated successfully" });
+                return Ok(new { UpdatedRentals = updatedCount, Message = "Estados actualizados exitosamente" });
             }
             catch (Exception ex)
             {

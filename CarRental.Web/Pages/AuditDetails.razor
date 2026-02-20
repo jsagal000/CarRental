@@ -243,6 +243,7 @@
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"Error al cargar permisos: {ex.Message}");
             hasModuleAccess = false;
         }
     }

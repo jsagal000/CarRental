@@ -242,30 +242,22 @@
     {
         try
         {
-            // 1. Verificar acceso al módulo
-            var moduleAccessResult = await PermissionApiClient.HasPermissionAsync("Customer", "Access");
-            hasModuleAccess = moduleAccessResult.IsSuccess && moduleAccessResult.Data;
+            var perms = await PermissionApiClient.GetModulePermissionsAsync("Customer");
+            hasModuleAccess = perms.HasAccess;
 
             if (!hasModuleAccess)
             {
-                return; // Si no tiene acceso al módulo, no verificar acciones
+                return;
             }
 
-            // 2. Verificar permisos de acciones individuales
-            var viewResult = await PermissionApiClient.HasPermissionAsync("Customer", "View");
-            canView = viewResult.IsSuccess && viewResult.Data;
-
-            var createResult = await PermissionApiClient.HasPermissionAsync("Customer", "Create");
-            canCreate = createResult.IsSuccess && createResult.Data;
-
-            var editResult = await PermissionApiClient.HasPermissionAsync("Customer", "Edit");
-            canEdit = editResult.IsSuccess && editResult.Data;
-
-            var deleteResult = await PermissionApiClient.HasPermissionAsync("Customer", "Delete");
-            canDelete = deleteResult.IsSuccess && deleteResult.Data;
+            canView = perms.CanView;
+            canCreate = perms.CanCreate;
+            canEdit = perms.CanEdit;
+            canDelete = perms.CanDelete;
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"Error al cargar permisos: {ex.Message}");
             hasModuleAccess = false;
         }
     }

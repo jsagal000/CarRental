@@ -7,6 +7,10 @@ namespace CarRental.Web.Services
     public class PermissionApiClient
     {
         private readonly AuthorizedHttpClient _httpClient;
+        
+        // ✅ CACHE ESTÁTICO: Compartido entre todas las instancias (persiste durante toda la sesión)
+        private static readonly Dictionary<string, ModulePermissionsDto> _permissionsCache = new();
+        private static readonly object _cacheLock = new object();
 
         public PermissionApiClient(AuthorizedHttpClient httpClient)
         {
@@ -32,6 +36,58 @@ namespace CarRental.Web.Services
             catch (Exception ex)
             {
                 return ApiResult<bool>.Failure($"Error al verificar permisos: {ex.Message}");
+            }
+        }
+
+        // ✅ OPTIMIZADO: Obtiene permisos del módulo (con cache en memoria)
+        public async Task<ModulePermissionsDto> GetModulePermissionsAsync(string module)
+        {
+            // 1. Verificar si está en caché
+            lock (_cacheLock)
+            {
+                if (_permissionsCache.TryGetValue(module, out var cachedPerms))
+                {
+                    Console.WriteLine($"✅ Cache HIT: Permisos de {module} obtenidos desde memoria");
+                    return cachedPerms;
+                }
+            }
+
+            // 2. Si no está en caché, llamar a la API
+            try
+            {
+                Console.WriteLine($"🌐 Cache MISS: Solicitando permisos de {module} desde API");
+                
+                var response = await _httpClient.GetAsync($"api/permissions/module/{module}");
+
+                if (response.IsSuccessStatusCode)
+                {
+                    var result = await response.Content.ReadFromJsonAsync<ApiResult<ModulePermissionsDto>>();
+                    var perms = result?.Data ?? new ModulePermissionsDto();
+                    
+                    // 3. Guardar en caché
+                    lock (_cacheLock)
+                    {
+                        _permissionsCache[module] = perms;
+                    }
+                    
+                    return perms;
+                }
+
+                return new ModulePermissionsDto();
+            }
+            catch
+            {
+                return new ModulePermissionsDto();
+            }
+        }
+
+        // ✅ MÉTODO ESTÁTICO: Limpiar el caché (útil al cerrar sesión)
+        public static void ClearCache()
+        {
+            lock (_cacheLock)
+            {
+                _permissionsCache.Clear();
+                Console.WriteLine("🗑️ Cache de permisos limpiado");
             }
         }
 

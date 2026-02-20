@@ -332,19 +332,16 @@
     {
         try
         {
-            var moduleAccessResult = await PermissionApiClient.HasPermissionAsync("Dashboard", "Access");
-            hasModuleAccess = moduleAccessResult.IsSuccess && moduleAccessResult.Data;
+            var perms = await PermissionApiClient.GetModulePermissionsAsync("Dashboard");
+            hasModuleAccess = perms.HasAccess;
 
-            if (!hasModuleAccess)
-            {
-                return;
-            }
+            if (!hasModuleAccess) return;
 
-            var viewResult = await PermissionApiClient.HasPermissionAsync("Dashboard", "View");
-            canView = viewResult.IsSuccess && viewResult.Data;
+            canView = perms.CanView;
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"Error al cargar permisos: {ex.Message}");
             hasModuleAccess = false;
         }
     }

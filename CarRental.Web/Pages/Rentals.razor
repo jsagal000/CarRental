@@ -177,9 +177,10 @@
                                     <td class="px-3 py-2 text-gray-800">@rental.DestinationType.ToString()</td>
                                     @if (canView || canEdit || canDelete)
                                     {
-                                        <td class="px-3 py-2 text-center">
-                                            <div class="flex justify-center space-x-2">
-                                                @* Botón Ver *@
+                                        <td class="px-3 py-2 text-center" style="position: relative; overflow: visible;">
+                                            <div class="flex justify-end items-center space-x-2">
+
+                                                @* Botón Ver - Siempre visible *@
                                                 @if (canView)
                                                 {
                                                     <a href="/rentals/details/@rental.Id"
@@ -192,55 +193,90 @@
                                                     </a>
                                                 }
 
-                                                @* Botón Editar - Solo si NO está Finalizado o Cancelado *@
-                                                @if (canEdit && rental.Status != Rental.RentalStatus.Completado && rental.Status != Rental.RentalStatus.Cancelado)
+                                                @* Botón 3 puntos - cambia a X cuando está abierto *@
+                                                @if (canEdit || canDelete)
                                                 {
-                                                    <a href="/rentals/edit/@rental.Id"
-                                                       class="p-2 bg-yellow-100 text-yellow-700 hover:bg-yellow-200 rounded-full"
-                                                       title="Editar">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z" />
-                                                        </svg>
-                                                    </a>
-                                                }
-
-                                                @* Botón Finalizar - Solo si está Activo o Vencido *@
-                                                @if (canEdit && CanFinalize(rental))
-                                                {
-                                                    <button @onclick="() => ConfirmFinalize(rental.Id)"
-                                                            class="p-2 bg-green-100 text-green-600 hover:bg-green-200 rounded-full"
-                                                            title="Finalizar alquiler">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                                        </svg>
-                                                    </button>
-                                                }
-
-                                                @* Botón Cancelar - Solo si está Activo o Vencido *@
-                                                @if (canEdit && CanCancel(rental))
-                                                {
-                                                    <button @onclick="() => ConfirmCancel(rental.Id)"
-                                                            class="p-2 bg-orange-100 text-orange-600 hover:bg-orange-200 rounded-full"
-                                                            title="Cancelar alquiler">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                                                        </svg>
-                                                    </button>
-                                                }
-
-                                                @* Botón Eliminar *@
-                                                @if (canDelete && CanDelete(rental))
-                                                {
-                                                    <button @onclick="() => ConfirmDelete(rental.Id)"
-                                                            class="p-2 bg-red-100 text-red-600 hover:bg-red-200 rounded-full"
-                                                            title="Eliminar">
-                                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                                                        </svg>
+                                                    <button @onclick="() => ToggleDropdown(rental.Id)"
+                                                            @onclick:stopPropagation="true"
+                                                            type="button"
+                                                            class="@(IsDropdownOpen(rental.Id) ? "p-2 bg-red-100 text-red-500 hover:bg-red-200 rounded-full transition-colors" : "p-2 bg-gray-100 text-gray-600 hover:bg-gray-200 rounded-full transition-colors")"
+                                                            title="@(IsDropdownOpen(rental.Id) ? "Cerrar" : "Más acciones")">
+                                                        @if (IsDropdownOpen(rental.Id))
+                                                        {
+                                                            @* Ícono X para cerrar *@
+                                                            <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                                            </svg>
+                                                        }
+                                                        else
+                                                        {
+                                                            @* Ícono 3 puntos *@
+                                                            <svg class="h-5 w-5" fill="currentColor" viewBox="0 0 20 20">
+                                                                <path d="M10 6a2 2 0 110-4 2 2 0 010 4zM10 12a2 2 0 110-4 2 2 0 010 4zM10 18a2 2 0 110-4 2 2 0 010 4z" />
+                                                            </svg>
+                                                        }
                                                     </button>
                                                 }
                                             </div>
+
+                                            @* Panel flotante anclado al td, expandiéndose hacia la izquierda *@
+                                            @if (IsDropdownOpen(rental.Id) && (canEdit || canDelete))
+                                            {
+                                                <div style="position: absolute; right: 56px; top: 50%; transform: translateY(-50%); z-index: 9999; display: flex; align-items: center; gap: 8px; background: white; padding: 6px 10px; border-radius: 10px; box-shadow: 0 4px 20px rgba(0,0,0,0.15); border: 1px solid #e5e7eb; white-space: nowrap;">
+                                                    @* Botón Editar *@
+                                                    @if (canEdit && rental.Status != Rental.RentalStatus.Completado && rental.Status != Rental.RentalStatus.Cancelado)
+                                                    {
+                                                        <a href="/rentals/edit/@rental.Id"
+                                                           class="p-2 bg-yellow-100 text-yellow-700 hover:bg-yellow-200 rounded-full"
+                                                           title="Editar"
+                                                           style="display:inline-flex;">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                                            </svg>
+                                                        </a>
+                                                    }
+
+                                                    @* Botón Finalizar *@
+                                                    @if (canEdit && CanFinalize(rental))
+                                                    {
+                                                        <button @onclick="() => { ConfirmFinalize(rental.Id); CloseAllDropdowns(); }"
+                                                                class="p-2 bg-green-100 text-green-600 hover:bg-green-200 rounded-full"
+                                                                title="Finalizar alquiler"
+                                                                style="display:inline-flex;">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                                            </svg>
+                                                        </button>
+                                                    }
+
+                                                    @* Botón Cancelar *@
+                                                    @if (canEdit && CanCancel(rental))
+                                                    {
+                                                        <button @onclick="() => { ConfirmCancel(rental.Id); CloseAllDropdowns(); }"
+                                                                class="p-2 bg-orange-100 text-orange-600 hover:bg-orange-200 rounded-full"
+                                                                title="Cancelar alquiler"
+                                                                style="display:inline-flex;">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                                                            </svg>
+                                                        </button>
+                                                    }
+
+                                                    @* Botón Eliminar *@
+                                                    @if (canDelete && CanDelete(rental))
+                                                    {
+                                                        <button @onclick="() => { ConfirmDelete(rental.Id); CloseAllDropdowns(); }"
+                                                                class="p-2 bg-red-100 text-red-600 hover:bg-red-200 rounded-full"
+                                                                title="Eliminar"
+                                                                style="display:inline-flex;">
+                                                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                                            </svg>
+                                                        </button>
+                                                    }
+                                                </div>
+                                            }
                                         </td>
                                     }
                                 </tr>
@@ -249,20 +285,29 @@
                     </table>
                 </div>
 
-                <!-- Paginación -->
-                <div class="flex justify-between items-center mt-6">
-                    <button @onclick="PreviousPage"
-                            disabled="@(currentPage == 1)"
-                            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors">
-                        Anterior
-                    </button>
-                    <span class="text-gray-600">Página @currentPage de @((int)Math.Ceiling(filteredRentals.Count() / (double)pageSize))</span>
-                    <button @onclick="NextPage"
-                            disabled="@(currentPage* pageSize >= filteredRentals.Count())"
-                            class="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors">
-                        Siguiente
-                    </button>
-                </div>
+                @if (filteredRentals.Count() > pageSize)
+                {
+                    <div class="bg-gray-50 px-4 py-3 border-t border-gray-200 mt-2 rounded-b-xl">
+                        <div class="flex items-center justify-between">
+                            <div class="text-sm text-gray-700">
+                                Mostrando @((currentPage - 1) * pageSize + 1) a @(Math.Min(currentPage * pageSize, filteredRentals.Count())) de @filteredRentals.Count() resultados
+                            </div>
+                            <div class="flex space-x-2">
+                                <button @onclick="PreviousPage" disabled="@(currentPage == 1)"
+                                        class="px-3 py-1 text-sm bg-white border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50">
+                                    Anterior
+                                </button>
+                                <span class="px-3 py-1 text-sm bg-blue-600 text-white rounded">
+                                    @currentPage
+                                </span>
+                                <button @onclick="NextPage" disabled="@(currentPage* pageSize >= filteredRentals.Count())"
+                                        class="px-3 py-1 text-sm bg-white border border-gray-300 rounded disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-50">
+                                    Siguiente
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                }
             }
         }
     </div>
@@ -279,6 +324,9 @@
     private bool canCreate = false;
     private bool canEdit = false;
     private bool canDelete = false;
+
+    // Variables para manejar dropdown de botones
+    private int? openDropdownId = null;
 
     // Variables privadas para los filtros
     private string _searchCustomer = string.Empty;
@@ -350,22 +398,15 @@
     {
         try
         {
-            var moduleAccessResult = await PermissionApiClient.HasPermissionAsync("Rental", "Access");
-            hasModuleAccess = moduleAccessResult.IsSuccess && moduleAccessResult.Data;
+            var perms = await PermissionApiClient.GetModulePermissionsAsync("Rental");
+            hasModuleAccess = perms.HasAccess;
 
             if (!hasModuleAccess) return;
 
-            var viewResult = await PermissionApiClient.HasPermissionAsync("Rental", "View");
-            canView = viewResult.IsSuccess && viewResult.Data;
-
-            var createResult = await PermissionApiClient.HasPermissionAsync("Rental", "Create");
-            canCreate = createResult.IsSuccess && createResult.Data;
-
-            var editResult = await PermissionApiClient.HasPermissionAsync("Rental", "Edit");
-            canEdit = editResult.IsSuccess && editResult.Data;
-
-            var deleteResult = await PermissionApiClient.HasPermissionAsync("Rental", "Delete");
-            canDelete = deleteResult.IsSuccess && deleteResult.Data;
+            canView = perms.CanView;
+            canCreate = perms.CanCreate;
+            canEdit = perms.CanEdit;
+            canDelete = perms.CanDelete;
         }
         catch (Exception ex)
         {
@@ -680,6 +721,29 @@
         {
             ToastService.ShowError($"Error: {ex.Message}");
         }
+    }
+
+    // Métodos para manejar el dropdown de botones
+    private void ToggleDropdown(int rentalId)
+    {
+        if (openDropdownId == rentalId)
+        {
+            openDropdownId = null;
+        }
+        else
+        {
+            openDropdownId = rentalId;
+        }
+    }
+
+    private bool IsDropdownOpen(int rentalId)
+    {
+        return openDropdownId == rentalId;
+    }
+
+    private void CloseAllDropdowns()
+    {
+        openDropdownId = null;
     }
 
     public void Dispose()

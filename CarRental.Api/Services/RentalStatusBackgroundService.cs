@@ -41,14 +41,23 @@ namespace CarRental.Api.Services
                     .Where(r => r.Status == Rental.RentalStatus.Reservado && r.StartDate.Date == today)
                     .ToListAsync();
 
+                if (!rentalsToUpdate.Any())
+                    return;
+
+                // ✅ OPTIMIZACIÓN: Cargar TODOS los vehículos en UNA SOLA consulta (en lugar de N consultas)
+                var vehicleIds = rentalsToUpdate.Select(r => r.VehicleId).ToList();
+                var vehicles = await context.Vehicles
+                    .Where(v => vehicleIds.Contains(v.Id))
+                    .ToDictionaryAsync(v => v.Id);
+
+                // Actualizar rentals y vehículos
                 foreach (var rental in rentalsToUpdate)
                 {
                     // Cambiar de Reservado a Activo
                     rental.Status = Rental.RentalStatus.Activo;
 
                     // Actualizar el estado del vehículo
-                    var vehicle = await context.Vehicles.FindAsync(rental.VehicleId);
-                    if (vehicle != null)
+                    if (vehicles.TryGetValue(rental.VehicleId, out var vehicle))
                     {
                         vehicle.State = Vehicle.VehicleState.Alquilado;
                     }
@@ -56,11 +65,8 @@ namespace CarRental.Api.Services
                     _logger.LogInformation("Rental {RentalId} status changed from Reservado to Activo", rental.Id);
                 }
 
-                if (rentalsToUpdate.Any())
-                {
-                    await context.SaveChangesAsync();
-                    _logger.LogInformation("Updated {Count} rental statuses", rentalsToUpdate.Count);
-                }
+                await context.SaveChangesAsync();
+                _logger.LogInformation("Updated {Count} rental statuses", rentalsToUpdate.Count);
             }
             catch (Exception ex)
             {

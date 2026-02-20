@@ -6,6 +6,7 @@ namespace CarRental.Core.Interfaces
     public interface IPermissionService
     {
         Task<ServiceResult<bool>> HasPermissionAsync(int userId, string module, string action);
+        Task<ServiceResult<ModulePermissionsDto>> GetModulePermissionsAsync(int userId, string module);
         Task<ServiceResult<List<PermissionDto>>> GetAllPermissionsAsync();
         Task<ServiceResult<List<PermissionModuleDto>>> GetPermissionsGroupedByModuleAsync();
         Task<ServiceResult<UserPermissionDto>> GetUserPermissionsAsync(int userId);

@@ -296,28 +296,22 @@
     {
         try
         {
-            var moduleAccessResult = await PermissionApiClient.HasPermissionAsync("Vehicle", "Access");
-            hasModuleAccess = moduleAccessResult.IsSuccess && moduleAccessResult.Data;
+            var perms = await PermissionApiClient.GetModulePermissionsAsync("Vehicle");
+            hasModuleAccess = perms.HasAccess;
 
             if (!hasModuleAccess)
             {
                 return;
             }
 
-            var viewResult = await PermissionApiClient.HasPermissionAsync("Vehicle", "View");
-            canView = viewResult.IsSuccess && viewResult.Data;
-
-            var createResult = await PermissionApiClient.HasPermissionAsync("Vehicle", "Create");
-            canCreate = createResult.IsSuccess && createResult.Data;
-
-            var editResult = await PermissionApiClient.HasPermissionAsync("Vehicle", "Edit");
-            canEdit = editResult.IsSuccess && editResult.Data;
-
-            var deleteResult = await PermissionApiClient.HasPermissionAsync("Vehicle", "Delete");
-            canDelete = deleteResult.IsSuccess && deleteResult.Data;
+            canView = perms.CanView;
+            canCreate = perms.CanCreate;
+            canEdit = perms.CanEdit;
+            canDelete = perms.CanDelete;
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"Error al cargar permisos: {ex.Message}");
             hasModuleAccess = false;
         }
     }
