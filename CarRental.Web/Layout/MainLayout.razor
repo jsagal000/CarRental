@@ -1,4 +1,4 @@
-﻿@inherits LayoutComponentBase
+@inherits LayoutComponentBase
 @inject AuthStateService AuthState
 @inject AuthApiClient AuthApiClient
 @inject NavigationManager NavigationManager
@@ -12,10 +12,17 @@
 @if (AuthState.IsAuthenticated)
 {
     <AuthenticationProvider>
+        <!-- Mobile overlay para cerrar sidebar -->
+        @if (mobileMenuOpen)
+        {
+            <div class="mobile-menu-overlay" @onclick="CloseMobileMenu"></div>
+        }
+
         <!-- Main page container -->
         <div class="d-flex min-vh-100">
-            <!-- Sidebar navigation con clase condicional controlada por Blazor -->
-            <div class="sidebar-container @(sidebarCollapsed ? "collapsed" : "") bg-dark text-white d-flex flex-column shadow-sm">
+            <!-- Sidebar navigation - agregamos clase para mobile -->
+            <div class="sidebar-container @(sidebarCollapsed ? "collapsed" : "") @(mobileMenuOpen ? "mobile-open" : "") bg-dark text-white d-flex flex-column shadow-sm" 
+                 @onclick:stopPropagation="true">
                 <NavMenu OnToggleExpanded="HandleSidebarToggle" IsExpanded="@(!sidebarCollapsed)" />
             </div>
 
@@ -25,15 +32,34 @@
                 <header class="modern-header bg-white shadow-sm border-bottom">
                     <div class="container-fluid px-4 py-3">
                         <div class="d-flex justify-content-between align-items-center">
-                            <!-- Título de página / breadcrumb (opcional) -->
-                            <div class="page-title">
+                            <!-- Hamburger + Título -->
+                            <div class="page-title d-flex align-items-center gap-3">
+                                <!-- Hamburger menu (solo visible en móvil) - CORREGIDO: Ahora cierra/abre -->
+                                <button class="btn btn-outline-secondary d-md-none hamburger-btn" 
+                                        @onclick="ToggleMobileMenu" 
+                                        aria-label="@(mobileMenuOpen ? "Cerrar menú" : "Abrir menú")">
+                                    @if (mobileMenuOpen)
+                                    {
+                                        <!-- Icono X cuando está abierto -->
+                                        <svg width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                                            <path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8 2.146 2.854Z"/>
+                                        </svg>
+                                    }
+                                    else
+                                    {
+                                        <!-- Icono hamburger cuando está cerrado -->
+                                        <svg width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+                                            <path fill-rule="evenodd" d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5zm0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5z"/>
+                                        </svg>
+                                    }
+                                </button>
                                 <h1 class="h5 mb-0 text-dark fw-semibold">@GetPageTitle()</h1>
                             </div>
 
                             <!-- User section moderna -->
-                            <div class="user-section d-flex align-items-center gap-3">
+                            <div class="user-section d-flex align-items-center gap-2 gap-sm-3">
                                 <!-- User info con diseño moderno -->
-                                <div class="user-info-card d-flex align-items-center bg-light rounded-pill px-3 py-2">
+                                <div class="user-info-card d-flex align-items-center bg-light rounded-pill px-2 px-sm-3 py-2">
                                     <!-- Avatar moderno -->
                                     <div class="user-avatar-modern">
                                         <div class="avatar-circle bg-gradient-primary text-white d-flex align-items-center justify-content-center">
@@ -42,21 +68,27 @@
                                         <div class="status-indicator bg-success"></div>
                                     </div>
                                     
-                                    <!-- User details -->
-                                    <div class="user-details ms-3">
+                                    <!-- User details (ocultos en móvil pequeño) -->
+                                    <div class="user-details ms-2 ms-sm-3 d-none d-sm-block">
                                         <div class="user-name fw-semibold text-dark">@AuthState.CurrentUser?.FullName</div>
                                         <div class="user-role text-muted small">@GetRoleDisplayName(AuthState.CurrentUser?.Role ?? UserRole.ReadOnly)</div>
                                     </div>
                                 </div>
 
-                                <!-- Logout button moderno -->
+                                <!-- ✅ COMPONENTE PWA (si lo agregaste) -->
+                                <InstallPWA />
+
+                                <!-- Logout button moderno - CORREGIDO: Más pequeño en móvil -->
                                 <button @onclick="HandleLogout" 
-                                        class="btn-logout btn btn-outline-danger d-flex align-items-center gap-2 px-3 py-2 rounded-pill border-2">
+                                        class="btn-logout btn btn-outline-danger d-flex align-items-center gap-2 rounded-pill border-2"
+                                        title="Cerrar sesión">
                                     <svg class="logout-icon" width="16" height="16" fill="currentColor" viewBox="0 0 16 16">
                                         <path fill-rule="evenodd" d="M10 12.5a.5.5 0 0 1-.5.5h-8a.5.5 0 0 1-.5-.5v-9a.5.5 0 0 1 .5-.5h8a.5.5 0 0 1 .5.5v2a.5.5 0 0 0 1 0v-2A1.5 1.5 0 0 0 9.5 2h-8A1.5 1.5 0 0 0 0 3.5v9A1.5 1.5 0 0 0 1.5 14h8a1.5 1.5 0 0 0 1.5-1.5v-2a.5.5 0 0 0-1 0v2z"/>
                                         <path fill-rule="evenodd" d="M15.854 8.354a.5.5 0 0 0 0-.708l-3-3a.5.5 0 0 0-.708.708L14.293 7.5H5.5a.5.5 0 0 0 0 1h8.793l-2.147 2.146a.5.5 0 0 0 .708.708l3-3z"/>
                                     </svg>
-                                    <span class="logout-text fw-medium">Cerrar Sesión</span>
+                                    <!-- Texto: Oculto en móvil, "Salir" en tablet, "Cerrar Sesión" en desktop -->
+                                    <span class="logout-text fw-medium d-none d-sm-inline d-lg-none">Salir</span>
+                                    <span class="logout-text fw-medium d-none d-lg-inline">Cerrar Sesión</span>
                                 </button>
                             </div>
                         </div>
@@ -100,20 +132,28 @@ else
     </div>
 }
 
-
-
 @code {
     private bool sidebarCollapsed = false;
+    private bool mobileMenuOpen = false;
 
     protected override async Task OnInitializedAsync()
     {
         await AuthState.InitializeAsync();
         AuthState.OnAuthenticationStateChanged += HandleAuthStateChanged;
+        NavigationManager.LocationChanged += HandleLocationChanged;
         
-        // Si no está autenticado, redirigir al login
         if (!AuthState.IsAuthenticated)
         {
             NavigationManager.NavigateTo("/login", forceLoad: true);
+        }
+    }
+
+    private void HandleLocationChanged(object sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        if (mobileMenuOpen)
+        {
+            mobileMenuOpen = false;
+            InvokeAsync(StateHasChanged);
         }
     }
 
@@ -129,10 +169,21 @@ else
         });
     }
 
-    // Método que recibe la notificación del NavMenu
     private void HandleSidebarToggle(bool isExpanded)
     {
         sidebarCollapsed = !isExpanded;
+        StateHasChanged();
+    }
+
+    private void ToggleMobileMenu()
+    {
+        mobileMenuOpen = !mobileMenuOpen;
+        StateHasChanged();
+    }
+
+    private void CloseMobileMenu()
+    {
+        mobileMenuOpen = false;
         StateHasChanged();
     }
 
@@ -140,27 +191,18 @@ else
     {
         try
         {
-            // Limpiar estado local inmediatamente
             await AuthState.LogoutAsync();
-            
-            // Limpiar localStorage
             await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "authToken");
             await JSRuntime.InvokeVoidAsync("localStorage.removeItem", "currentUser");
-            
-            // La redirección se manejará automáticamente por HandleAuthStateChanged
             ToastService.ShowSuccess("Sesión cerrada exitosamente");
             
-            // Intentar llamada al API en background
             _ = Task.Run(async () =>
             {
                 try
                 {
                     await AuthApiClient.LogoutAsync();
                 }
-                catch
-                {
-                    // Ignorar errores de la API durante logout
-                }
+                catch { }
             });
         }
         catch (Exception ex)
@@ -189,6 +231,7 @@ else
         return uri switch
         {
             "" => "Dashboard",
+            "dashboard" => "Dashboard",
             "vehicles" => "Gestión de Vehículos",
             "rentals" => "Gestión de Alquileres", 
             "customers" => "Gestión de Clientes",
@@ -204,5 +247,6 @@ else
     public void Dispose()
     {
         AuthState.OnAuthenticationStateChanged -= HandleAuthStateChanged;
+        NavigationManager.LocationChanged -= HandleLocationChanged;
     }
 }

@@ -432,12 +432,12 @@
     private async Task HandleDelete(int vehicleId)
     {
         // Mostrar loading
-        await ModalService.ShowLoadingAsync("Eliminando vehículo...");
+        // await ModalService.ShowLoadingAsync("Eliminando vehículo...");
 
         var result = await VehicleApiClient.DeleteVehicleAsync(vehicleId);
 
         // Cerrar loading
-        await ModalService.CloseAsync();
+        // await ModalService.CloseAsync();
 
         if (result.IsSuccess)
         {

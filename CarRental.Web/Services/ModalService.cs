@@ -17,7 +17,7 @@ namespace CarRental.Web.Services
         /// </summary>
         public async Task<bool> ConfirmAsync(string title, string message, string icon = "question")
         {
-            return await _jsRuntime.InvokeAsync<bool>("Swal.fire", new
+            var result = await _jsRuntime.InvokeAsync<SweetAlertResult>("Swal.fire", new
             {
                 title = title,
                 text = message,
@@ -27,15 +27,9 @@ namespace CarRental.Web.Services
                 cancelButtonColor = "#d33",
                 confirmButtonText = "Sí, confirmar",
                 cancelButtonText = "Cancelar"
-            }).AsTask().ContinueWith(task =>
-            {
-                if (task.IsCompletedSuccessfully)
-                {
-                    var result = task.Result;
-                    return result;
-                }
-                return false;
             });
+
+            return result.IsConfirmed;
         }
 
         /// <summary>
@@ -54,7 +48,7 @@ namespace CarRental.Web.Services
                 confirmButtonText = "Sí, eliminar",
                 cancelButtonText = "Cancelar",
                 focusCancel = true,
-                reverseButtons = true,
+                reverseButtons = true
             });
 
             return result.IsConfirmed;
@@ -97,47 +91,15 @@ namespace CarRental.Web.Services
         /// </summary>
         public async Task<CancelRentalResult> ConfirmCancelRentalAsync()
         {
-            var result = await _jsRuntime.InvokeAsync<SweetAlertResult>("Swal.fire", new
-            {
-                title = "Cancelar Alquiler",
-                html = @"
-                    <div class='text-left'>
-                        <p class='mb-3 font-semibold'>¿Cómo deseas cancelar este alquiler?</p>
-                        <div class='space-y-2'>
-                            <label class='flex items-start cursor-pointer p-3 border rounded hover:bg-gray-50'>
-                                <input type='radio' name='cancelOption' value='calculate' class='mt-1 mr-3' checked>
-                                <div>
-                                    <div class='font-medium'>Calcular días transcurridos</div>
-                                    <div class='text-sm text-gray-600'>Se cobrará el costo proporcional por los días de uso</div>
-                                </div>
-                            </label>
-                            <label class='flex items-start cursor-pointer p-3 border rounded hover:bg-gray-50'>
-                                <input type='radio' name='cancelOption' value='nocost' class='mt-1 mr-3'>
-                                <div>
-                                    <div class='font-medium'>Cancelar sin costo</div>
-                                    <div class='text-sm text-gray-600'>No se generará ningún cargo</div>
-                                </div>
-                            </label>
-                        </div>
-                    </div>
-                ",
-                icon = "warning",
-                showCancelButton = true,
-                confirmButtonColor = "#f97316",
-                cancelButtonColor = "#6c757d",
-                confirmButtonText = "Confirmar Cancelación",
-                cancelButtonText = "Volver",
-                focusCancel = true,
-                reverseButtons = true,
-                preConfirm = "() => { return document.querySelector('input[name=\"cancelOption\"]:checked').value; }"
-            });
+            // Usar función JavaScript personalizada para este caso especial
+            var selectedValue = await _jsRuntime.InvokeAsync<string>("showCancelRentalModal");
 
-            if (result.IsConfirmed)
+            if (!string.IsNullOrEmpty(selectedValue))
             {
                 return new CancelRentalResult
                 {
                     Confirmed = true,
-                    CalculateDays = result.Value?.ToString() == "calculate"
+                    CalculateDays = selectedValue == "calculate"
                 };
             }
 
@@ -154,6 +116,9 @@ namespace CarRental.Web.Services
                 title = title,
                 text = message,
                 icon = "success",
+                showCancelButton = false,
+                showDenyButton = false,
+                showConfirmButton = true,
                 confirmButtonColor = "#10b981",
                 confirmButtonText = "Aceptar"
             });
@@ -169,6 +134,9 @@ namespace CarRental.Web.Services
                 title = title,
                 text = message,
                 icon = "error",
+                showCancelButton = false,
+                showDenyButton = false,
+                showConfirmButton = true,
                 confirmButtonColor = "#ef4444",
                 confirmButtonText = "Aceptar"
             });
@@ -184,6 +152,9 @@ namespace CarRental.Web.Services
                 title = title,
                 text = message,
                 icon = "info",
+                showCancelButton = false,
+                showDenyButton = false,
+                showConfirmButton = true,
                 confirmButtonColor = "#3b82f6",
                 confirmButtonText = "Aceptar"
             });
@@ -202,8 +173,7 @@ namespace CarRental.Web.Services
                 inputPlaceholder = placeholder,
                 showCancelButton = true,
                 confirmButtonText = "Aceptar",
-                cancelButtonText = "Cancelar",
-                inputValidator = "(value) => { if (!value) { return 'Este campo es requerido'; } }"
+                cancelButtonText = "Cancelar"
             });
 
             return result.IsConfirmed ? result.Value?.ToString() : null;
@@ -214,15 +184,7 @@ namespace CarRental.Web.Services
         /// </summary>
         public async Task ShowLoadingAsync(string title = "Procesando...")
         {
-            await _jsRuntime.InvokeVoidAsync("Swal.fire", new
-            {
-                title = title,
-                allowOutsideClick = false,
-                allowEscapeKey = false,
-                allowEnterKey = false,
-                showConfirmButton = false,
-                willOpen = "() => { Swal.showLoading(); }"
-            });
+            await _jsRuntime.InvokeVoidAsync("showLoadingModal", title);
         }
 
         /// <summary>
@@ -230,7 +192,7 @@ namespace CarRental.Web.Services
         /// </summary>
         public async Task CloseAsync()
         {
-            await _jsRuntime.InvokeVoidAsync("Swal.close");
+            await _jsRuntime.InvokeVoidAsync("eval", "if(typeof Swal !== 'undefined') { Swal.close(); }");
         }
     }
 

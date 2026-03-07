@@ -1,22 +1,87 @@
 {
-  "name": "CarRental.Web",
-  "short_name": "CarRental.Web",
+  "name": "CarRental - Sistema de Gestión",
+  "short_name": "CarRental",
+  "description": "Sistema completo de gestión de alquiler de vehículos",
   "id": "./",
   "start_url": "./",
+  "scope": "./",
   "display": "standalone",
+  "display_override": [ "window-controls-overlay", "standalone", "minimal-ui" ],
+  "orientation": "portrait-primary",
   "background_color": "#ffffff",
-  "theme_color": "#03173d",
+  "theme_color": "#4f46e5",
+  "categories": [ "business", "productivity", "finance" ],
   "prefer_related_applications": false,
   "icons": [
     {
       "src": "icon-512.png",
       "type": "image/png",
-      "sizes": "512x512"
+      "sizes": "512x512",
+      "purpose": "any maskable"
     },
     {
       "src": "icon-192.png",
       "type": "image/png",
-      "sizes": "192x192"
+      "sizes": "192x192",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "form_factor": "wide"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Inicio",
+      "description": "Ver dashboard principal",
+      "url": "/dashboard",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Alquileres",
+      "short_name": "Alquileres",
+      "description": "Gestionar alquileres",
+      "url": "/rentals",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Vehículos",
+      "short_name": "Vehículos",
+      "description": "Gestionar vehículos",
+      "url": "/vehicles",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
+    },
+    {
+      "name": "Clientes",
+      "short_name": "Clientes",
+      "description": "Gestionar clientes",
+      "url": "/customers",
+      "icons": [
+        {
+          "src": "icon-192.png",
+          "sizes": "192x192"
+        }
+      ]
     }
   ]
 }

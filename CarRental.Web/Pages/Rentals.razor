@@ -500,6 +500,7 @@
 
         filteredRentals = query.OrderByDescending(r => r.StartDate).ToList();
         currentPage = 1;
+        StateHasChanged();
     }
 
     private void ClearFilters()
@@ -594,12 +595,12 @@
     private async Task HandleCancel(int rentalId, bool calculateDays)
     {
         // Mostrar loading
-        await ModalService.ShowLoadingAsync("Cancelando alquiler...");
+        // await ModalService.ShowLoadingAsync("Cancelando alquiler...");
 
         var result = await RentalApiClient.CancelRentalAsync(rentalId, calculateDays);
 
         // Cerrar loading
-        await ModalService.CloseAsync();
+        // await ModalService.CloseAsync();
 
         if (result.IsSuccess)
         {
@@ -640,12 +641,12 @@
     private async Task HandleDelete(int rentalId)
     {
         // Mostrar loading
-        await ModalService.ShowLoadingAsync("Eliminando alquiler...");
+        // await ModalService.ShowLoadingAsync("Eliminando alquiler...");
 
         var result = await RentalApiClient.DeleteRentalAsync(rentalId);
 
         // Cerrar loading
-        await ModalService.CloseAsync();
+        // await ModalService.CloseAsync();
 
         if (result.IsSuccess)
         {
@@ -678,14 +679,14 @@
     private async Task HandleFinalize(int rentalId)
     {
         // Mostrar loading
-        await ModalService.ShowLoadingAsync("Finalizando alquiler...");
+        // await ModalService.ShowLoadingAsync("Finalizando alquiler...");
 
         var actualReturnDate = DateTime.Now;
 
         var result = await RentalApiClient.FinalizeRentalAsync(rentalId, actualReturnDate);
 
         // Cerrar loading
-        await ModalService.CloseAsync();
+        // await ModalService.CloseAsync();
 
         if (result.IsSuccess)
         {

@@ -367,12 +367,12 @@
     private async Task HandleDelete(int customerId)
     {
         // Mostrar loading
-        await ModalService.ShowLoadingAsync("Eliminando cliente...");
+        // await ModalService.ShowLoadingAsync("Eliminando cliente...");
 
         var result = await CustomerApiClient.DeleteCustomerAsync(customerId);
 
         // Cerrar loading
-        await ModalService.CloseAsync();
+        // await ModalService.CloseAsync();
 
         if (result.IsSuccess)
         {

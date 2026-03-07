@@ -15,6 +15,12 @@
     <link href="manifest.webmanifest" rel="manifest" />
     <link rel="apple-touch-icon" sizes="512x512" href="icon-512.png" />
     <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png" />
+    
+    <!-- FullCalendar CSS -->
+    <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css' rel='stylesheet' />
+
+    <!-- Calendar CSS personalizado -->
+    <link href="css/calendar.css" rel="stylesheet" />
 
     <!-- SweetAlert2 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
@@ -76,6 +82,7 @@
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <!-- Carga de jsPDF para exportación a PDF -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
 </head>
 
 <body>
@@ -109,6 +116,9 @@
     <!-- SweetAlert2 JS -->
     <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 
+    <!-- Helpers para modales -->
+    <script src="js/modal-helpers.js"></script>
+
     <!-- Configuración de SweetAlert2 -->
     <script>
         // Exponer SweetAlert2 globalmente
@@ -129,30 +139,34 @@
 
         window.Toast = Toast;
 
-        // FIX MÍNIMO: Solo forzar display de botones si están ocultos
-        const observer = new MutationObserver(() => {
-            // Solo intervenir si los botones están ocultos
-            const buttons = document.querySelectorAll('.swal2-actions > button.swal2-styled');
-            buttons.forEach(btn => {
-                if (btn.style.display === 'none' || btn.style.display === '') {
-                    btn.style.display = 'inline-block';
-                }
-                if (btn.style.opacity === '0') {
-                    btn.style.opacity = '1';
-                }
-                if (btn.style.visibility === 'hidden') {
-                    btn.style.visibility = 'visible';
-                }
-            });
-        });
+        // ✅ SOLUCIÓN: Override de Swal.fire para configurar defaults correctos
+        const originalFire = Swal.fire;
+        Swal.fire = function (...args) {
+            // Si se pasa un objeto de configuración
+            if (args.length === 1 && typeof args[0] === 'object') {
+                const config = args[0];
 
-        // Iniciar observer
-        observer.observe(document.body, {
-            childList: true,
-            subtree: true,
-            attributes: true,
-            attributeFilter: ['style']
-        });
+                // Si no se especifica showCancelButton, asumimos false
+                if (config.showCancelButton === undefined) {
+                    config.showCancelButton = false;
+                }
+
+                // Si no se especifica showDenyButton, asumimos false
+                if (config.showDenyButton === undefined) {
+                    config.showDenyButton = false;
+                }
+
+                // Si no se especifica showConfirmButton, asumimos true
+                if (config.showConfirmButton === undefined && !config.showCancelButton && !config.showDenyButton) {
+                    config.showConfirmButton = true;
+                }
+            }
+
+            // Llamar al Swal.fire original
+            return originalFire.apply(this, args);
+        };
+
+        console.log('[SweetAlert2] Configuración personalizada aplicada');
     </script>
 
     <!-- Función de descarga de PDF desde byte array -->
@@ -212,6 +226,10 @@
         };
     </script>
 
+    <!-- FullCalendar JS -->
+    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
+    <!-- Calendario JS -->
+    <script src="js/calendar.js"></script>
 </body>
 
 </html>

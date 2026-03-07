@@ -1,0 +1,61 @@
+﻿@using Microsoft.JSInterop
+@inject IJSRuntime JSRuntime
+@implements IAsyncDisposable
+
+<!-- Botón de instalación (solo se muestra si la app es instalable) -->
+@if (showInstallButton)
+{
+    <button class="install-pwa-btn" @onclick="InstallApp" title="Instalar aplicación">
+        <svg width="20" height="20" fill="currentColor" viewBox="0 0 16 16">
+            <path d="M.5 9.9a.5.5 0 0 1 .5.5v2.5a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-2.5a.5.5 0 0 1 1 0v2.5a2 2 0 0 1-2 2H2a2 2 0 0 1-2-2v-2.5a.5.5 0 0 1 .5-.5z" />
+            <path d="M7.646 11.854a.5.5 0 0 0 .708 0l3-3a.5.5 0 0 0-.708-.708L8.5 10.293V1.5a.5.5 0 0 0-1 0v8.793L5.354 8.146a.5.5 0 1 0-.708.708l3 3z" />
+        </svg>
+        <span class="install-text">Instalar App</span>
+    </button>
+}
+
+@code {
+    private bool showInstallButton = false;
+    private IJSObjectReference? jsModule;
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                jsModule = await JSRuntime.InvokeAsync<IJSObjectReference>(
+                    "import", "./js/pwa-install.js");
+
+                // Verificar si la app puede instalarse
+                showInstallButton = await jsModule.InvokeAsync<bool>("canInstall");
+                StateHasChanged();
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Error al cargar módulo PWA: {ex.Message}");
+            }
+        }
+    }
+
+    private async Task InstallApp()
+    {
+        if (jsModule != null)
+        {
+            var installed = await jsModule.InvokeAsync<bool>("installApp");
+            if (installed)
+            {
+                showInstallButton = false;
+                StateHasChanged();
+            }
+        }
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        if (jsModule != null)
+        {
+            await jsModule.DisposeAsync();
+        }
+    }
+}
