@@ -1,21 +1,31 @@
-﻿// calendar.js - Inicialización de FullCalendar
+﻿// calendar.js - Inicialización de FullCalendar (Estilo Google Calendar)
 let calendar = null;
 let dotNetHelper = null;
 
 // Inicializar el calendario
 window.initializeCalendar = function (eventsJson, dotNetRef) {
+    console.log('[Calendar] Inicializando calendario');
     dotNetHelper = dotNetRef;
 
+    // Validar que FullCalendar esté cargado
+    if (typeof FullCalendar === 'undefined') {
+        console.error('[Calendar] ERROR: FullCalendar no está cargado');
+        return;
+    }
+
     const events = JSON.parse(eventsJson);
+    console.log(`[Calendar] Eventos cargados: ${events.length}`);
+
     const calendarEl = document.getElementById('calendar');
 
     if (!calendarEl) {
-        console.error('Elemento #calendar no encontrado');
+        console.error('[Calendar] ERROR: Elemento #calendar no encontrado');
         return;
     }
 
     // Destruir calendario anterior si existe
     if (calendar) {
+        console.log('[Calendar] Destruyendo calendario anterior');
         calendar.destroy();
     }
 
@@ -23,17 +33,19 @@ window.initializeCalendar = function (eventsJson, dotNetRef) {
         // Configuración básica
         initialView: 'dayGridMonth',
         locale: 'es',
+
+        // Header sin vista Lista
         headerToolbar: {
             left: 'prev,next today',
             center: 'title',
-            right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
+            right: 'dayGridMonth,timeGridWeek,timeGridDay'
         },
+
         buttonText: {
             today: 'Hoy',
             month: 'Mes',
             week: 'Semana',
-            day: 'Día',
-            list: 'Lista'
+            day: 'Día'
         },
 
         // Altura automática
@@ -43,64 +55,61 @@ window.initializeCalendar = function (eventsJson, dotNetRef) {
         events: events,
 
         // Configuración de eventos
-        editable: true, // Permitir drag & drop
-        eventStartEditable: true, // Permitir mover eventos
-        eventDurationEditable: true, // Permitir cambiar duración
+        editable: true,
+        eventStartEditable: true,
+        eventDurationEditable: true,
         eventResizableFromStart: true,
 
         // Estilo de eventos
         eventDisplay: 'block',
-        eventTimeFormat: {
-            hour: '2-digit',
-            minute: '2-digit',
-            meridiem: false,
-            hour12: false
-        },
+        displayEventTime: false, // No mostrar hora en eventos de todo el día
 
         // Configuración de días
         firstDay: 1, // Lunes como primer día
         weekNumbers: false,
         navLinks: true,
 
-        // Configuración de tiempo
+        // Configuración de tiempo para vistas de semana/día
         slotMinTime: '06:00:00',
         slotMaxTime: '22:00:00',
         slotDuration: '01:00:00',
 
-        // Configuración responsive
-        windowResize: function (view) {
-            if (window.innerWidth < 768) {
-                calendar.changeView('listWeek');
+        // Permitir selección de fechas
+        selectable: false, // Deshabilitado para evitar crear eventos arrastrando
+        selectMirror: false,
+
+        // Eventos de interacción
+
+        // Click en fecha (día del calendario)
+        dateClick: function (info) {
+            console.log('[Calendar] Click en fecha:', info.dateStr);
+
+            // Notificar a Blazor que se seleccionó una fecha
+            if (dotNetHelper) {
+                dotNetHelper.invokeMethodAsync('OnDateSelect', info.dateStr);
             }
         },
 
-        // Eventos de interacción
+        // Click en evento
         eventClick: function (info) {
             info.jsEvent.preventDefault();
 
             const rentalId = info.event.id;
-            const props = info.event.extendedProps;
+            console.log('[Calendar] Click en evento:', rentalId);
 
-            // Mostrar modal con detalles
-            showEventDetails(info.event);
-
-            // Notificar a Blazor
+            // Navegar a detalles
             if (dotNetHelper) {
                 dotNetHelper.invokeMethodAsync('OnEventClick', rentalId);
             }
         },
 
-        dateClick: function (info) {
-            // Crear nueva reserva en la fecha clickeada
-            if (dotNetHelper) {
-                dotNetHelper.invokeMethodAsync('OnDateClick', info.dateStr);
-            }
-        },
-
+        // Drag & Drop de eventos
         eventDrop: async function (info) {
             const rentalId = info.event.id;
-            const newStart = info.event.start.toISOString();
-            const newEnd = info.event.end ? info.event.end.toISOString() : newStart;
+            const newStart = info.event.start.toISOString().split('T')[0]; // Solo fecha
+            const newEnd = info.event.end ? info.event.end.toISOString().split('T')[0] : newStart;
+
+            console.log('[Calendar] Evento movido:', rentalId, newStart, newEnd);
 
             if (dotNetHelper) {
                 const success = await dotNetHelper.invokeMethodAsync(
@@ -119,10 +128,13 @@ window.initializeCalendar = function (eventsJson, dotNetRef) {
             }
         },
 
+        // Resize de eventos
         eventResize: async function (info) {
             const rentalId = info.event.id;
-            const newStart = info.event.start.toISOString();
-            const newEnd = info.event.end ? info.event.end.toISOString() : newStart;
+            const newStart = info.event.start.toISOString().split('T')[0];
+            const newEnd = info.event.end ? info.event.end.toISOString().split('T')[0] : newStart;
+
+            console.log('[Calendar] Evento redimensionado:', rentalId, newStart, newEnd);
 
             if (dotNetHelper) {
                 const success = await dotNetHelper.invokeMethodAsync(
@@ -144,89 +156,33 @@ window.initializeCalendar = function (eventsJson, dotNetRef) {
         eventDidMount: function (info) {
             // Agregar tooltip con información
             const props = info.event.extendedProps;
-            const tooltip = `
-                <div style="font-size: 12px;">
-                    <strong>${info.event.title}</strong><br>
-                    ${props.licensePlate ? `Placa: ${props.licensePlate}<br>` : ''}
-                    Cliente: ${props.customerName || 'N/A'}<br>
-                    Estado: ${props.status || 'N/A'}<br>
-                    ${props.dailyRate ? `Tarifa: $${props.dailyRate}/día<br>` : ''}
-                    ${props.totalCost ? `Total: $${props.totalCost}` : ''}
-                </div>
-            `;
 
-            info.el.setAttribute('title', tooltip);
+            // Tooltip HTML (se muestra al pasar el mouse)
+            info.el.setAttribute('title',
+                `${info.event.title}\n` +
+                `Estado: ${props.status}\n` +
+                `${props.licensePlate ? 'Placa: ' + props.licensePlate + '\n' : ''}` +
+                `${props.dailyRate ? 'Tarifa: $' + props.dailyRate + '/día' : ''}`
+            );
+
             info.el.style.cursor = 'pointer';
+        },
+
+        // Configuración responsive
+        windowResize: function (view) {
+            // El layout responsive se maneja con CSS Grid en Blazor
         }
     });
 
     calendar.render();
-
-    // Ajustar vista en móvil
-    if (window.innerWidth < 768) {
-        calendar.changeView('listWeek');
-    }
-};
-
-// Mostrar detalles del evento en modal
-function showEventDetails(event) {
-    const props = event.extendedProps;
-
-    const formatDate = (date) => {
-        return new Date(date).toLocaleString('es-EC', {
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-    };
-
-    const details = `
-        <div class="p-4">
-            <h3 class="text-lg font-bold mb-2">${event.title}</h3>
-            <div class="space-y-2 text-sm">
-                ${props.licensePlate ? `<p><strong>Placa:</strong> ${props.licensePlate}</p>` : ''}
-                <p><strong>Cliente:</strong> ${props.customerName || 'N/A'}</p>
-                <p><strong>Estado:</strong> <span class="px-2 py-1 rounded text-white" style="background-color: ${event.backgroundColor}">${props.status}</span></p>
-                <p><strong>Inicio:</strong> ${formatDate(event.start)}</p>
-                <p><strong>Fin:</strong> ${formatDate(event.end)}</p>
-                ${props.dailyRate ? `<p><strong>Tarifa diaria:</strong> $${props.dailyRate}</p>` : ''}
-                ${props.totalCost ? `<p><strong>Costo total:</strong> $${props.totalCost}</p>` : ''}
-            </div>
-            <div class="mt-4 flex justify-end">
-                <button onclick="closeEventDetails()" class="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 mr-2">
-                    Cerrar
-                </button>
-                <a href="/rentals/details/${event.id}" class="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700">
-                    Ver Detalles
-                </a>
-            </div>
-        </div>
-    `;
-
-    if (window.Swal) {
-        window.Swal.fire({
-            html: details,
-            showConfirmButton: false,
-            width: '500px',
-            customClass: {
-                popup: 'rounded-xl'
-            }
-        });
-    }
-}
-
-window.closeEventDetails = function () {
-    if (window.Swal) {
-        window.Swal.close();
-    }
+    console.log('[Calendar] ✅ Calendario renderizado exitosamente');
 };
 
 // Cambiar vista del calendario
 window.changeCalendarView = function (viewName) {
     if (calendar) {
         calendar.changeView(viewName);
+        console.log('[Calendar] Vista cambiada a:', viewName);
     }
 };
 
@@ -236,6 +192,7 @@ window.updateCalendarEvents = function (eventsJson) {
         const events = JSON.parse(eventsJson);
         calendar.removeAllEvents();
         calendar.addEventSource(events);
+        console.log('[Calendar] Eventos actualizados:', events.length);
     }
 };
 
@@ -243,6 +200,7 @@ window.updateCalendarEvents = function (eventsJson) {
 window.goToDate = function (dateStr) {
     if (calendar) {
         calendar.gotoDate(dateStr);
+        console.log('[Calendar] Navegado a fecha:', dateStr);
     }
 };
 
@@ -258,6 +216,7 @@ window.getCurrentDate = function () {
 window.refreshCalendar = function () {
     if (calendar) {
         calendar.refetchEvents();
+        console.log('[Calendar] Calendario refrescado');
     }
 };
 
@@ -266,6 +225,7 @@ window.disposeCalendar = function () {
     if (calendar) {
         calendar.destroy();
         calendar = null;
+        console.log('[Calendar] Calendario destruido');
     }
     dotNetHelper = null;
 };

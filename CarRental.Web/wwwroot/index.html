@@ -15,9 +15,9 @@
     <link href="manifest.webmanifest" rel="manifest" />
     <link rel="apple-touch-icon" sizes="512x512" href="icon-512.png" />
     <link rel="apple-touch-icon" sizes="192x192" href="icon-192.png" />
-    
+
     <!-- FullCalendar CSS -->
-    <link href='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css' rel='stylesheet' />
+    <link href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/main.min.css" rel="stylesheet" />
 
     <!-- Calendar CSS personalizado -->
     <link href="css/calendar.css" rel="stylesheet" />
@@ -25,18 +25,14 @@
     <!-- SweetAlert2 CSS -->
     <link href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css" rel="stylesheet">
 
-    <!-- FIX ESPECÍFICO: Solo arreglar botones, no tocar el modal -->
+    <!-- CSS para botones de SweetAlert2 - Compatible con ocultar botones -->
     <style>
-        /* Solo arreglamos los BOTONES del modal, no el contenedor */
-        .swal2-actions > button.swal2-styled {
+        /* Restaurar estilos que Tailwind elimina SOLO para botones VISIBLES */
+        .swal2-actions > button.swal2-styled:not([style*="display: none"]):not([style*="display:none"]) {
             /* Restaurar padding que Tailwind elimina */
             padding: 0.625em 1.1em !important;
             /* Restaurar margin */
             margin: 0.3125em !important;
-            /* Asegurar visibilidad */
-            display: inline-block !important;
-            opacity: 1 !important;
-            visibility: visible !important;
             /* Texto */
             font-size: 1em !important;
             font-weight: 500 !important;
@@ -48,34 +44,34 @@
             cursor: pointer !important;
         }
 
-            /* Botón confirmar - color azul por defecto */
-            .swal2-actions > button.swal2-styled.swal2-confirm {
-                background-color: #7066e0 !important;
-            }
+        /* Colores de botones SOLO para los visibles */
+        .swal2-actions > button.swal2-confirm:not([style*="display: none"]) {
+            background-color: #7066e0 !important;
+        }
 
-            /* Botón cancelar - color gris */
-            .swal2-actions > button.swal2-styled.swal2-cancel {
-                background-color: #6e7881 !important;
-            }
+        .swal2-actions > button.swal2-cancel:not([style*="display: none"]) {
+            background-color: #6e7881 !important;
+        }
 
-            /* Botón denegar (si se usa) */
-            .swal2-actions > button.swal2-styled.swal2-deny {
-                background-color: #dc3741 !important;
-            }
+        .swal2-actions > button.swal2-deny:not([style*="display: none"]) {
+            background-color: #dc3741 !important;
+        }
 
-            /* Hover effect */
-            .swal2-actions > button.swal2-styled:hover {
-                background-image: linear-gradient(rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.1)) !important;
-            }
+        /* Hover y Focus SOLO para botones visibles */
+        .swal2-actions > button.swal2-styled:not([style*="display: none"]):hover {
+            background-image: linear-gradient(rgba(0, 0, 0, 0.1), rgba(0, 0, 0, 0.1)) !important;
+        }
 
-            /* Focus effect */
-            .swal2-actions > button.swal2-styled:focus {
-                outline: none !important;
-                box-shadow: 0 0 0 3px rgba(100, 150, 200, 0.5) !important;
-            }
+        .swal2-actions > button.swal2-styled:not([style*="display: none"]):focus {
+            outline: none !important;
+            box-shadow: 0 0 0 3px rgba(100, 150, 200, 0.5) !important;
+        }
 
-        /* NO tocamos .swal2-actions, .swal2-popup, .swal2-container
-           para que mantengan su tamaño y posición original */
+        /* IMPORTANTE: Asegurar que botones ocultos estén realmente ocultos */
+        .swal2-actions > button.swal2-cancel[style*="display: none"],
+        .swal2-actions > button.swal2-deny[style*="display: none"] {
+            display: none !important;
+        }
     </style>
 
     <!-- Carga de Plotly.js para gráficos -->
@@ -121,10 +117,8 @@
 
     <!-- Configuración de SweetAlert2 -->
     <script>
-        // Exponer SweetAlert2 globalmente
         window.Swal = Swal;
 
-        // Configuración de Toast (notificaciones pequeñas)
         const Toast = Swal.mixin({
             toast: true,
             position: 'top-end',
@@ -139,34 +133,53 @@
 
         window.Toast = Toast;
 
-        // ✅ SOLUCIÓN: Override de Swal.fire para configurar defaults correctos
+        // Override MEJORADO de Swal.fire con didOpen
         const originalFire = Swal.fire;
         Swal.fire = function (...args) {
-            // Si se pasa un objeto de configuración
             if (args.length === 1 && typeof args[0] === 'object') {
                 const config = args[0];
 
-                // Si no se especifica showCancelButton, asumimos false
+                // Defaults
                 if (config.showCancelButton === undefined) {
                     config.showCancelButton = false;
                 }
 
-                // Si no se especifica showDenyButton, asumimos false
                 if (config.showDenyButton === undefined) {
                     config.showDenyButton = false;
                 }
 
-                // Si no se especifica showConfirmButton, asumimos true
                 if (config.showConfirmButton === undefined && !config.showCancelButton && !config.showDenyButton) {
                     config.showConfirmButton = true;
                 }
+
+                // Hook didOpen para FORZAR display: none
+                const originalDidOpen = config.didOpen;
+                config.didOpen = function (popup) {
+                    // Forzar ocultar botones con display: none inline
+                    if (!config.showCancelButton) {
+                        const cancelBtn = popup.querySelector('.swal2-cancel');
+                        if (cancelBtn) {
+                            cancelBtn.style.display = 'none';
+                        }
+                    }
+                    if (!config.showDenyButton) {
+                        const denyBtn = popup.querySelector('.swal2-deny');
+                        if (denyBtn) {
+                            denyBtn.style.display = 'none';
+                        }
+                    }
+
+                    // Llamar al didOpen original si existe
+                    if (originalDidOpen) {
+                        originalDidOpen.call(this, popup);
+                    }
+                };
             }
 
-            // Llamar al Swal.fire original
             return originalFire.apply(this, args);
         };
 
-        console.log('[SweetAlert2] Configuración personalizada aplicada');
+        console.log('[SweetAlert2] Override aplicado con didOpen');
     </script>
 
     <!-- Función de descarga de PDF desde byte array -->
@@ -227,7 +240,11 @@
     </script>
 
     <!-- FullCalendar JS -->
-    <script src='https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js'></script>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+
+    <!-- Localización en español -->
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/locales/es.global.min.js"></script>
+
     <!-- Calendario JS -->
     <script src="js/calendar.js"></script>
 </body>
