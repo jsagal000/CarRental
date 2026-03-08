@@ -1,92 +1,136 @@
-﻿// calendar.js - Inicialización de FullCalendar (Estilo Google Calendar)
+﻿// calendar.js - FullCalendar EXACTO como Google Calendar
 let calendar = null;
 let dotNetHelper = null;
 
-// Inicializar el calendario
 window.initializeCalendar = function (eventsJson, dotNetRef) {
-    console.log('[Calendar] Inicializando calendario');
+    console.log('[Calendar] 🚀 Inicializando...');
     dotNetHelper = dotNetRef;
 
-    // Validar que FullCalendar esté cargado
     if (typeof FullCalendar === 'undefined') {
-        console.error('[Calendar] ERROR: FullCalendar no está cargado');
+        console.error('[Calendar] ❌ ERROR: FullCalendar no disponible');
         return;
     }
 
     const events = JSON.parse(eventsJson);
-    console.log(`[Calendar] Eventos cargados: ${events.length}`);
+    console.log(`[Calendar] ✅ ${events.length} eventos cargados`);
 
     const calendarEl = document.getElementById('calendar');
-
     if (!calendarEl) {
-        console.error('[Calendar] ERROR: Elemento #calendar no encontrado');
+        console.error('[Calendar] ❌ ERROR: #calendar no encontrado');
         return;
     }
 
-    // Destruir calendario anterior si existe
     if (calendar) {
-        console.log('[Calendar] Destruyendo calendario anterior');
         calendar.destroy();
     }
 
     calendar = new FullCalendar.Calendar(calendarEl, {
-        // Configuración básica
         initialView: 'dayGridMonth',
         locale: 'es',
 
-        // Header sin vista Lista
         headerToolbar: {
             left: 'prev,next today',
             center: 'title',
-            right: 'dayGridMonth,timeGridWeek,timeGridDay'
+            right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
         },
 
         buttonText: {
             today: 'Hoy',
             month: 'Mes',
             week: 'Semana',
-            day: 'Día'
+            day: 'Día',
+            list: 'Lista'
         },
 
-        // Altura automática
-        height: 'auto',
-
-        // Eventos
+        height: '100%',
         events: events,
-
-        // Configuración de eventos
         editable: true,
         eventStartEditable: true,
         eventDurationEditable: true,
-        eventResizableFromStart: true,
-
-        // Estilo de eventos
-        eventDisplay: 'block',
-        displayEventTime: false, // No mostrar hora en eventos de todo el día
-
-        // Configuración de días
-        firstDay: 1, // Lunes como primer día
-        weekNumbers: false,
+        firstDay: 1,
         navLinks: true,
 
-        // Configuración de tiempo para vistas de semana/día
-        slotMinTime: '06:00:00',
-        slotMaxTime: '22:00:00',
-        slotDuration: '01:00:00',
+        // Configuración de vistas
+        views: {
+            dayGridMonth: {
+                dayMaxEvents: true,
+                displayEventTime: false
+            },
+            timeGridWeek: {
+                slotMinTime: '06:00:00',
+                slotMaxTime: '22:00:00',
+                slotDuration: '01:00:00',
+                allDaySlot: true,
+                displayEventTime: true,
+                eventTimeFormat: {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    meridiem: false,
+                    hour12: false
+                }
+            },
+            timeGridDay: {
+                slotMinTime: '06:00:00',
+                slotMaxTime: '22:00:00',
+                slotDuration: '00:30:00',
+                allDaySlot: true,
+                displayEventTime: true,
+                eventTimeFormat: {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    meridiem: false,
+                    hour12: false
+                }
+            },
+            listWeek: {
+                listDayFormat: { weekday: 'long', month: 'long', day: 'numeric' },
+                listDaySideFormat: false,
+                noEventsContent: 'No hay eventos para mostrar'
+            }
+        },
 
-        // Permitir selección de fechas
-        selectable: false, // Deshabilitado para evitar crear eventos arrastrando
-        selectMirror: false,
+        // Vista Lista personalizada
+        eventContent: function (arg) {
+            if (arg.view.type === 'listWeek') {
+                const props = arg.event.extendedProps;
+                const div = document.createElement('div');
+                div.className = 'p-3 border-l-4 hover:bg-gray-50 transition-colors';
+                div.style.borderColor = arg.backgroundColor;
+                div.innerHTML = `
+                    <div class="flex items-start justify-between gap-3">
+                        <div class="flex-1">
+                            <p class="font-semibold text-sm text-gray-900">
+                                ${props.make || ''} ${props.model || ''}
+                            </p>
+                            <p class="text-xs text-gray-600 mt-1">
+                                📅 ${formatDate(arg.event.start)} - ${formatDate(arg.event.end)}
+                            </p>
+                            <p class="text-xs text-gray-500 mt-0.5">
+                                🕐 ${formatTime(arg.event.start)} - ${formatTime(arg.event.end)}
+                            </p>
+                            ${props.licensePlate ? `
+                                <p class="text-xs text-gray-500 mt-0.5">
+                                    🚗 ${props.licensePlate}
+                                </p>
+                            ` : ''}
+                        </div>
+                        <span class="text-xs px-2 py-1 rounded-full text-white font-medium whitespace-nowrap"
+                              style="background-color: ${arg.backgroundColor}">
+                            ${props.status || ''}
+                        </span>
+                    </div>
+                `;
+                return { domNodes: [div] };
+            }
+            return true;
+        },
 
-        // Eventos de interacción
-
-        // Click en fecha (día del calendario)
+        // Click en fecha
         dateClick: function (info) {
-            console.log('[Calendar] Click en fecha:', info.dateStr);
-
-            // Notificar a Blazor que se seleccionó una fecha
+            console.log('[Calendar] 📅 Fecha clickeada:', info.dateStr);
             if (dotNetHelper) {
-                dotNetHelper.invokeMethodAsync('OnDateSelect', info.dateStr);
+                dotNetHelper.invokeMethodAsync('OnDateClick', info.dateStr)
+                    .catch(err => console.error('[Calendar] Error:', err));
             }
         },
 
@@ -94,33 +138,60 @@ window.initializeCalendar = function (eventsJson, dotNetRef) {
         eventClick: function (info) {
             info.jsEvent.preventDefault();
 
-            const rentalId = info.event.id;
-            console.log('[Calendar] Click en evento:', rentalId);
+            const eventDate = info.event.start;
+            const dateStr = eventDate.toISOString().split('T')[0];
 
-            // Navegar a detalles
+            console.log('[Calendar] 📌 Evento clickeado:', dateStr);
+
             if (dotNetHelper) {
-                dotNetHelper.invokeMethodAsync('OnEventClick', rentalId);
+                dotNetHelper.invokeMethodAsync('OnDateClick', dateStr)
+                    .catch(err => console.error('[Calendar] Error:', err));
             }
         },
 
-        // Drag & Drop de eventos
+        // Cambio de vista - Notificar a Blazor
+        viewDidMount: function (info) {
+            console.log('[Calendar] 👁️ Vista montada:', info.view.type);
+            if (dotNetHelper) {
+                dotNetHelper.invokeMethodAsync('OnViewChange', info.view.type)
+                    .catch(err => console.error('[Calendar] Error en OnViewChange:', err));
+            }
+        },
+
+        // Cambio de fechas visibles
+        datesSet: function (info) {
+            console.log('[Calendar] 📆 Fechas actualizadas');
+
+            // Notificar cambio de vista
+            if (dotNetHelper) {
+                dotNetHelper.invokeMethodAsync('OnViewChange', info.view.type)
+                    .catch(err => console.error('[Calendar] Error:', err));
+            }
+
+            // Actualizar fecha seleccionada
+            const currentDate = calendar.getDate();
+            const dateStr = currentDate.toISOString().split('T')[0];
+
+            if (dotNetHelper) {
+                dotNetHelper.invokeMethodAsync('OnDateClick', dateStr)
+                    .catch(err => console.error('[Calendar] Error:', err));
+            }
+        },
+
+        // Drag & Drop
         eventDrop: async function (info) {
             const rentalId = info.event.id;
-            const newStart = info.event.start.toISOString().split('T')[0]; // Solo fecha
-            const newEnd = info.event.end ? info.event.end.toISOString().split('T')[0] : newStart;
-
-            console.log('[Calendar] Evento movido:', rentalId, newStart, newEnd);
+            const newStart = info.event.start.toISOString();
+            const newEnd = info.event.end ? info.event.end.toISOString() : newStart;
 
             if (dotNetHelper) {
-                const success = await dotNetHelper.invokeMethodAsync(
-                    'OnEventDrop',
-                    rentalId,
-                    newStart,
-                    newEnd
-                );
-
-                if (!success) {
-                    // Revertir cambios si falló
+                try {
+                    const success = await dotNetHelper.invokeMethodAsync('OnEventDrop', rentalId, newStart, newEnd);
+                    if (!success) {
+                        info.revert();
+                    }
+                } catch (err) {
+                    console.error('[Calendar] Error en Drag:', err);
                     info.revert();
                 }
             } else {
@@ -128,83 +199,77 @@ window.initializeCalendar = function (eventsJson, dotNetRef) {
             }
         },
 
-        // Resize de eventos
+        // Resize
         eventResize: async function (info) {
             const rentalId = info.event.id;
-            const newStart = info.event.start.toISOString().split('T')[0];
-            const newEnd = info.event.end ? info.event.end.toISOString().split('T')[0] : newStart;
-
-            console.log('[Calendar] Evento redimensionado:', rentalId, newStart, newEnd);
+            const newStart = info.event.start.toISOString();
+            const newEnd = info.event.end ? info.event.end.toISOString() : newStart;
 
             if (dotNetHelper) {
-                const success = await dotNetHelper.invokeMethodAsync(
-                    'OnEventDrop',
-                    rentalId,
-                    newStart,
-                    newEnd
-                );
-
-                if (!success) {
+                try {
+                    const success = await dotNetHelper.invokeMethodAsync('OnEventDrop', rentalId, newStart, newEnd);
+                    if (!success) {
+                        info.revert();
+                    }
+                } catch (err) {
+                    console.error('[Calendar] Error en Resize:', err);
                     info.revert();
                 }
             } else {
                 info.revert();
             }
-        },
-
-        // Renderizado de eventos
-        eventDidMount: function (info) {
-            // Agregar tooltip con información
-            const props = info.event.extendedProps;
-
-            // Tooltip HTML (se muestra al pasar el mouse)
-            info.el.setAttribute('title',
-                `${info.event.title}\n` +
-                `Estado: ${props.status}\n` +
-                `${props.licensePlate ? 'Placa: ' + props.licensePlate + '\n' : ''}` +
-                `${props.dailyRate ? 'Tarifa: $' + props.dailyRate + '/día' : ''}`
-            );
-
-            info.el.style.cursor = 'pointer';
-        },
-
-        // Configuración responsive
-        windowResize: function (view) {
-            // El layout responsive se maneja con CSS Grid en Blazor
         }
     });
 
     calendar.render();
-    console.log('[Calendar] ✅ Calendario renderizado exitosamente');
+    console.log('[Calendar] ✅ Renderizado exitosamente');
 };
 
-// Cambiar vista del calendario
-window.changeCalendarView = function (viewName) {
-    if (calendar) {
-        calendar.changeView(viewName);
-        console.log('[Calendar] Vista cambiada a:', viewName);
-    }
-};
+// Helpers para formatear fechas
+function formatDate(date) {
+    if (!date) return '';
+    return new Date(date).toLocaleDateString('es-EC', {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric'
+    });
+}
 
-// Actualizar eventos del calendario
+function formatTime(date) {
+    if (!date) return '';
+    return new Date(date).toLocaleTimeString('es-EC', {
+        hour: '2-digit',
+        minute: '2-digit',
+        hour12: false
+    });
+}
+
+// Actualizar eventos
 window.updateCalendarEvents = function (eventsJson) {
     if (calendar) {
         const events = JSON.parse(eventsJson);
         calendar.removeAllEvents();
         calendar.addEventSource(events);
-        console.log('[Calendar] Eventos actualizados:', events.length);
+        calendar.refetchEvents();
+        console.log('[Calendar] ✅ Eventos actualizados:', events.length);
     }
 };
 
-// Ir a una fecha específica
+// Cambiar vista
+window.changeCalendarView = function (viewName) {
+    if (calendar) {
+        calendar.changeView(viewName);
+    }
+};
+
+// Ir a fecha
 window.goToDate = function (dateStr) {
     if (calendar) {
         calendar.gotoDate(dateStr);
-        console.log('[Calendar] Navegado a fecha:', dateStr);
     }
 };
 
-// Obtener fecha actual del calendario
+// Obtener fecha actual
 window.getCurrentDate = function () {
     if (calendar) {
         return calendar.getDate().toISOString();
@@ -212,20 +277,18 @@ window.getCurrentDate = function () {
     return new Date().toISOString();
 };
 
-// Refrescar calendario
+// Refrescar
 window.refreshCalendar = function () {
     if (calendar) {
         calendar.refetchEvents();
-        console.log('[Calendar] Calendario refrescado');
     }
 };
 
-// Limpiar al destruir el componente
+// Limpiar
 window.disposeCalendar = function () {
     if (calendar) {
         calendar.destroy();
         calendar = null;
-        console.log('[Calendar] Calendario destruido');
     }
     dotNetHelper = null;
 };
