@@ -1,4 +1,4 @@
-﻿// calendar.js - FullCalendar EXACTO como Google Calendar
+﻿// calendar.js - Versión simplificada sin layout absoluto
 let calendar = null;
 let dotNetHelper = null;
 
@@ -7,7 +7,7 @@ window.initializeCalendar = function (eventsJson, dotNetRef) {
     dotNetHelper = dotNetRef;
 
     if (typeof FullCalendar === 'undefined') {
-        console.error('[Calendar] ❌ ERROR: FullCalendar no disponible');
+        console.error('[Calendar] ❌ FullCalendar no disponible');
         return;
     }
 
@@ -16,7 +16,7 @@ window.initializeCalendar = function (eventsJson, dotNetRef) {
 
     const calendarEl = document.getElementById('calendar');
     if (!calendarEl) {
-        console.error('[Calendar] ❌ ERROR: #calendar no encontrado');
+        console.error('[Calendar] ❌ #calendar no encontrado');
         return;
     }
 
@@ -43,80 +43,94 @@ window.initializeCalendar = function (eventsJson, dotNetRef) {
         },
 
         height: '100%',
+
         events: events,
         editable: true,
         eventStartEditable: true,
         eventDurationEditable: true,
         firstDay: 1,
         navLinks: true,
+        nowIndicator: true,
 
-        // Configuración de vistas
         views: {
             dayGridMonth: {
-                dayMaxEvents: true,
-                displayEventTime: false
+                dayMaxEvents: 3,
+                displayEventTime: false,
+                fixedWeekCount: false,
+                titleFormat: { month: 'long', year: 'numeric' }
             },
             timeGridWeek: {
-                slotMinTime: '06:00:00',
-                slotMaxTime: '22:00:00',
+                slotMinTime: '00:00:00',
+                slotMaxTime: '24:00:00',
                 slotDuration: '01:00:00',
-                allDaySlot: true,
+                allDaySlot: false,
                 displayEventTime: true,
+                slotLabelInterval: '01:00',
+                scrollTime: '06:00:00',
                 eventTimeFormat: {
-                    hour: '2-digit',
+                    hour: 'numeric',
                     minute: '2-digit',
-                    meridiem: false,
-                    hour12: false
+                    hour12: true
+                },
+                titleFormat: { month: 'short', year: 'numeric' },
+                dayHeaderContent: function (arg) {
+                    const dayName = arg.date.toLocaleDateString('es-EC', { weekday: 'short' }).toUpperCase();
+                    const dayNumber = arg.date.getDate();
+                    return {
+                        html: '<div style="text-align: center;"><div style="font-size: 0.9em;">' + dayName + '</div><div style="font-size: 1.3em; font-weight: bold;">' + dayNumber + '</div></div>'
+                    };
                 }
             },
             timeGridDay: {
-                slotMinTime: '06:00:00',
-                slotMaxTime: '22:00:00',
-                slotDuration: '00:30:00',
-                allDaySlot: true,
+                slotMinTime: '00:00:00',
+                slotMaxTime: '24:00:00',
+                slotDuration: '01:00:00',
+                allDaySlot: false,
                 displayEventTime: true,
+                slotLabelInterval: '01:00',
+                scrollTime: '06:00:00',
                 eventTimeFormat: {
-                    hour: '2-digit',
+                    hour: 'numeric',
                     minute: '2-digit',
-                    meridiem: false,
-                    hour12: false
-                }
+                    hour12: true
+                },
+                titleFormat: { month: 'short', year: 'numeric' }
             },
             listWeek: {
-                listDayFormat: { weekday: 'long', month: 'long', day: 'numeric' },
-                listDaySideFormat: false,
-                noEventsContent: 'No hay eventos para mostrar'
+                listDayFormat: { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' },
+                noEventsContent: 'No hay eventos para mostrar',
+                titleFormat: { day: 'numeric', month: 'short', year: 'numeric' }
             }
         },
 
-        // Vista Lista personalizada
+        slotLabelContent: function (arg) {
+            const hour = arg.date.getHours();
+            let hour12 = hour % 12 || 12;
+            let label = hour12.toString();
+
+            if (hour === 0 || hour === 12) {
+                label += ' ' + (hour < 12 ? 'AM' : 'PM');
+            }
+
+            return { html: '<span style="font-size: 0.85em;">' + label + '</span>' };
+        },
+
         eventContent: function (arg) {
             if (arg.view.type === 'listWeek') {
                 const props = arg.event.extendedProps;
                 const div = document.createElement('div');
-                div.className = 'p-3 border-l-4 hover:bg-gray-50 transition-colors';
+                div.className = 'p-3 border-l-4 hover:bg-gray-50';
                 div.style.borderColor = arg.backgroundColor;
                 div.innerHTML = `
-                    <div class="flex items-start justify-between gap-3">
-                        <div class="flex-1">
-                            <p class="font-semibold text-sm text-gray-900">
-                                ${props.make || ''} ${props.model || ''}
-                            </p>
-                            <p class="text-xs text-gray-600 mt-1">
-                                📅 ${formatDate(arg.event.start)} - ${formatDate(arg.event.end)}
-                            </p>
-                            <p class="text-xs text-gray-500 mt-0.5">
-                                🕐 ${formatTime(arg.event.start)} - ${formatTime(arg.event.end)}
-                            </p>
-                            ${props.licensePlate ? `
-                                <p class="text-xs text-gray-500 mt-0.5">
-                                    🚗 ${props.licensePlate}
-                                </p>
-                            ` : ''}
+                    <div class="flex justify-between gap-3">
+                        <div style="flex: 1;">
+                            <p class="font-semibold text-sm">${props.make || ''} ${props.model || ''}</p>
+                            <p class="text-xs text-gray-600">📅 ${formatDate(arg.event.start)} - ${formatDate(arg.event.end)}</p>
+                            <p class="text-xs text-gray-500">🕐 ${formatTime(arg.event.start)} - ${formatTime(arg.event.end)}</p>
+                            ${props.licensePlate ? `<p class="text-xs text-gray-500">🚗 ${props.licensePlate}</p>` : ''}
                         </div>
-                        <span class="text-xs px-2 py-1 rounded-full text-white font-medium whitespace-nowrap"
-                              style="background-color: ${arg.backgroundColor}">
-                            ${props.status || ''}
+                        <span class="text-xs px-2 py-1 rounded text-white" style="background-color: ${arg.backgroundColor}">
+                            ${props.status}
                         </span>
                     </div>
                 `;
@@ -125,73 +139,54 @@ window.initializeCalendar = function (eventsJson, dotNetRef) {
             return true;
         },
 
-        // Click en fecha
         dateClick: function (info) {
-            console.log('[Calendar] 📅 Fecha clickeada:', info.dateStr);
             if (dotNetHelper) {
                 dotNetHelper.invokeMethodAsync('OnDateClick', info.dateStr)
                     .catch(err => console.error('[Calendar] Error:', err));
             }
         },
 
-        // Click en evento
         eventClick: function (info) {
             info.jsEvent.preventDefault();
-
-            const eventDate = info.event.start;
-            const dateStr = eventDate.toISOString().split('T')[0];
-
-            console.log('[Calendar] 📌 Evento clickeado:', dateStr);
-
+            const dateStr = info.event.start.toISOString().split('T')[0];
             if (dotNetHelper) {
                 dotNetHelper.invokeMethodAsync('OnDateClick', dateStr)
                     .catch(err => console.error('[Calendar] Error:', err));
             }
         },
 
-        // Cambio de vista - Notificar a Blazor
         viewDidMount: function (info) {
-            console.log('[Calendar] 👁️ Vista montada:', info.view.type);
-            if (dotNetHelper) {
-                dotNetHelper.invokeMethodAsync('OnViewChange', info.view.type)
-                    .catch(err => console.error('[Calendar] Error en OnViewChange:', err));
+            console.log('[Calendar] 👁️ Vista:', info.view.type);
+
+            // Controlar sidebar
+            const sidebar = document.getElementById('events-sidebar');
+            const wrapper = document.getElementById('calendar-wrapper');
+
+            if (sidebar && wrapper) {
+                if (info.view.type === 'dayGridMonth') {
+                    sidebar.style.display = 'flex';
+                    wrapper.style.right = '320px';
+                } else {
+                    sidebar.style.display = 'none';
+                    wrapper.style.right = '0';
+                }
+
+                setTimeout(() => calendar.updateSize(), 100);
             }
         },
 
-        // Cambio de fechas visibles
-        datesSet: function (info) {
-            console.log('[Calendar] 📆 Fechas actualizadas');
-
-            // Notificar cambio de vista
-            if (dotNetHelper) {
-                dotNetHelper.invokeMethodAsync('OnViewChange', info.view.type)
-                    .catch(err => console.error('[Calendar] Error:', err));
-            }
-
-            // Actualizar fecha seleccionada
-            const currentDate = calendar.getDate();
-            const dateStr = currentDate.toISOString().split('T')[0];
-
-            if (dotNetHelper) {
-                dotNetHelper.invokeMethodAsync('OnDateClick', dateStr)
-                    .catch(err => console.error('[Calendar] Error:', err));
-            }
-        },
-
-        // Drag & Drop
         eventDrop: async function (info) {
-            const rentalId = info.event.id;
-            const newStart = info.event.start.toISOString();
-            const newEnd = info.event.end ? info.event.end.toISOString() : newStart;
-
             if (dotNetHelper) {
                 try {
-                    const success = await dotNetHelper.invokeMethodAsync('OnEventDrop', rentalId, newStart, newEnd);
-                    if (!success) {
-                        info.revert();
-                    }
+                    const success = await dotNetHelper.invokeMethodAsync(
+                        'OnEventDrop',
+                        info.event.id,
+                        info.event.start.toISOString(),
+                        info.event.end ? info.event.end.toISOString() : info.event.start.toISOString()
+                    );
+                    if (!success) info.revert();
                 } catch (err) {
-                    console.error('[Calendar] Error en Drag:', err);
+                    console.error('[Calendar] Error:', err);
                     info.revert();
                 }
             } else {
@@ -199,20 +194,18 @@ window.initializeCalendar = function (eventsJson, dotNetRef) {
             }
         },
 
-        // Resize
         eventResize: async function (info) {
-            const rentalId = info.event.id;
-            const newStart = info.event.start.toISOString();
-            const newEnd = info.event.end ? info.event.end.toISOString() : newStart;
-
             if (dotNetHelper) {
                 try {
-                    const success = await dotNetHelper.invokeMethodAsync('OnEventDrop', rentalId, newStart, newEnd);
-                    if (!success) {
-                        info.revert();
-                    }
+                    const success = await dotNetHelper.invokeMethodAsync(
+                        'OnEventDrop',
+                        info.event.id,
+                        info.event.start.toISOString(),
+                        info.event.end ? info.event.end.toISOString() : info.event.start.toISOString()
+                    );
+                    if (!success) info.revert();
                 } catch (err) {
-                    console.error('[Calendar] Error en Resize:', err);
+                    console.error('[Calendar] Error:', err);
                     info.revert();
                 }
             } else {
@@ -222,10 +215,9 @@ window.initializeCalendar = function (eventsJson, dotNetRef) {
     });
 
     calendar.render();
-    console.log('[Calendar] ✅ Renderizado exitosamente');
+    console.log('[Calendar] ✅ Renderizado');
 };
 
-// Helpers para formatear fechas
 function formatDate(date) {
     if (!date) return '';
     return new Date(date).toLocaleDateString('es-EC', {
@@ -238,53 +230,25 @@ function formatDate(date) {
 function formatTime(date) {
     if (!date) return '';
     return new Date(date).toLocaleTimeString('es-EC', {
-        hour: '2-digit',
+        hour: 'numeric',
         minute: '2-digit',
-        hour12: false
+        hour12: true
     });
 }
 
-// Actualizar eventos
 window.updateCalendarEvents = function (eventsJson) {
     if (calendar) {
         const events = JSON.parse(eventsJson);
         calendar.removeAllEvents();
         calendar.addEventSource(events);
         calendar.refetchEvents();
-        console.log('[Calendar] ✅ Eventos actualizados:', events.length);
     }
 };
 
-// Cambiar vista
-window.changeCalendarView = function (viewName) {
-    if (calendar) {
-        calendar.changeView(viewName);
-    }
-};
-
-// Ir a fecha
-window.goToDate = function (dateStr) {
-    if (calendar) {
-        calendar.gotoDate(dateStr);
-    }
-};
-
-// Obtener fecha actual
-window.getCurrentDate = function () {
-    if (calendar) {
-        return calendar.getDate().toISOString();
-    }
-    return new Date().toISOString();
-};
-
-// Refrescar
 window.refreshCalendar = function () {
-    if (calendar) {
-        calendar.refetchEvents();
-    }
+    if (calendar) calendar.refetchEvents();
 };
 
-// Limpiar
 window.disposeCalendar = function () {
     if (calendar) {
         calendar.destroy();
