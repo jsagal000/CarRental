@@ -1,10 +1,8 @@
-﻿/* calendar.css - Layout absoluto sin scroll en Mes */
+﻿/* calendar.css - Sin movimiento con box-shadow */
 
-/* Calendario ocupa 100% */
 #calendar {
     width: 100% !important;
     height: 100% !important;
-    padding: 16px;
 }
 
 .fc {
@@ -12,39 +10,122 @@
     height: 100% !important;
 }
 
-/* ✅ Wrapper del calendario con transición suave */
-#calendar-wrapper {
-    transition: right 0.3s ease-in-out;
+/* Toolbar */
+.fc-header-toolbar {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    padding: 0 !important;
+    margin-bottom: 1rem !important;
 }
 
-/* ✅ Vista MES - SIN SCROLL */
+/* ✅ Vista MES - SIN SCROLL, altura completa */
 .fc-dayGridMonth-view {
     height: 100% !important;
-    overflow: hidden !important;
 }
 
     .fc-dayGridMonth-view .fc-scrollgrid {
         height: 100% !important;
     }
 
+    /* ✅ CRÍTICO: Sin overflow para mostrar todas las filas */
     .fc-dayGridMonth-view .fc-scroller {
-        overflow-y: hidden !important;
-        overflow-x: hidden !important;
+        overflow: visible !important;
+        height: auto !important;
     }
 
-    .fc-dayGridMonth-view .fc-scrollgrid-section-body > td {
-        height: 100% !important;
+    .fc-dayGridMonth-view .fc-scroller-harness {
+        overflow: visible !important;
     }
 
     .fc-dayGridMonth-view .fc-daygrid-body {
         height: 100% !important;
     }
 
-    .fc-dayGridMonth-view .fc-daygrid-day-frame {
-        min-height: 60px !important;
+    .fc-dayGridMonth-view .fc-scrollgrid-sync-table {
+        height: 100% !important;
     }
 
-/* ✅ Vistas SEMANA y DÍA - CON scroll */
+    /* ✅ Tabla ocupa todo el espacio disponible */
+    .fc-dayGridMonth-view .fc-scrollgrid-section-body table {
+        height: 100% !important;
+    }
+
+    .fc-dayGridMonth-view tbody {
+        height: 100% !important;
+    }
+
+        /* ✅ Distribuir filas equitativamente */
+        .fc-dayGridMonth-view tbody tr {
+            height: auto !important;
+        }
+
+    /* ✅ Celdas con altura automática y borde fijo */
+    .fc-dayGridMonth-view .fc-daygrid-day {
+        background-color: white !important;
+        border: 1px solid #e5e7eb !important; /* Borde siempre 1px */
+        position: relative !important;
+        min-height: 100px !important;
+    }
+
+    .fc-dayGridMonth-view .fc-daygrid-day-frame {
+        min-height: 100px !important;
+        background-color: white !important;
+        padding: 4px !important;
+    }
+
+    /* Días de otros meses (números grises claros) */
+    .fc-dayGridMonth-view .fc-day-other {
+        background-color: white !important;
+    }
+
+        .fc-dayGridMonth-view .fc-day-other .fc-daygrid-day-number {
+            color: #d1d5db !important;
+        }
+
+    /* ✅ DÍA ACTUAL (hoy) - Círculo azul */
+    .fc-dayGridMonth-view .fc-day-today {
+        background-color: rgba(59, 130, 246, 0.1) !important;
+    }
+
+        .fc-dayGridMonth-view .fc-day-today .fc-daygrid-day-number {
+            background-color: #3b82f6 !important;
+            color: white !important;
+            border-radius: 50% !important;
+            width: 32px !important;
+            height: 32px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
+            font-weight: bold !important;
+            margin: 2px !important;
+        }
+
+    /* ✅ DÍA SELECCIONADO - Box-shadow azul SIN cambiar tamaño */
+    .fc-dayGridMonth-view .fc-daygrid-day.selected-day {
+        box-shadow: inset 0 0 0 3px #3b82f6 !important;
+        background-color: rgba(59, 130, 246, 0.05) !important;
+        z-index: 10 !important;
+    }
+
+    /* ✅ HOVER - Box-shadow azul claro SIN cambiar tamaño */
+    .fc-dayGridMonth-view .fc-daygrid-day:hover {
+        box-shadow: inset 0 0 0 2px #93c5fd !important;
+        background-color: rgba(59, 130, 246, 0.03) !important;
+        cursor: pointer !important;
+    }
+
+    /* No aplicar hover si ya está seleccionado */
+    .fc-dayGridMonth-view .fc-daygrid-day.selected-day:hover {
+        box-shadow: inset 0 0 0 3px #3b82f6 !important;
+    }
+
+    /* Eliminar padding/margin extra */
+    .fc-dayGridMonth-view .fc-scrollgrid-section > td {
+        padding: 0 !important;
+    }
+
+/* Vistas SEMANA/DÍA - CON SCROLL */
 .fc-timeGridWeek-view .fc-scroller,
 .fc-timeGridDay-view .fc-scroller {
     overflow-y: auto !important;
@@ -60,36 +141,13 @@
     height: 50px !important;
 }
 
-.fc-timegrid-slot-label {
-    vertical-align: middle !important;
-}
-
-/* ✅ Vista LISTA - con scroll */
+/* Vista LISTA - CON SCROLL */
 .fc-listWeek-view .fc-scroller {
     overflow-y: auto !important;
     max-height: calc(100vh - 250px) !important;
 }
 
-/* Sidebar con transición */
-#events-sidebar {
-    transition: opacity 0.3s ease-in-out;
-}
-
-/* Ajustar cabecera */
-.fc-col-header-cell-cushion {
-    padding: 8px 4px !important;
-}
-
-/* Eventos en vista lista */
-.fc-list-event {
-    cursor: pointer;
-}
-
-    .fc-list-event:hover {
-        background-color: #f9fafb !important;
-    }
-
-/* Scrollbar personalizado */
+/* Scrollbar */
 .fc-scroller::-webkit-scrollbar {
     width: 8px;
 }
@@ -103,10 +161,6 @@
     border-radius: 4px;
 }
 
-    .fc-scroller::-webkit-scrollbar-thumb:hover {
-        background: #555;
-    }
-
 /* Título */
 .fc-toolbar-title {
     font-size: 1.5em !important;
@@ -116,19 +170,4 @@
 /* Botones */
 .fc-button {
     text-transform: capitalize !important;
-}
-
-/* Día actual */
-.fc-day-today {
-    background-color: rgba(59, 130, 246, 0.1) !important;
-}
-
-/* Línea de tiempo actual */
-.fc-timegrid-now-indicator-line {
-    border-color: #ef4444 !important;
-    border-width: 2px !important;
-}
-
-.fc-timegrid-now-indicator-arrow {
-    border-color: #ef4444 !important;
 }

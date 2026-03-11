@@ -1,4 +1,4 @@
-﻿// calendar.js - Versión simplificada sin layout absoluto
+﻿// calendar.js - Con fixedWeekCount true para mostrar todas las semanas
 let calendar = null;
 let dotNetHelper = null;
 
@@ -7,7 +7,7 @@ window.initializeCalendar = function (eventsJson, dotNetRef) {
     dotNetHelper = dotNetRef;
 
     if (typeof FullCalendar === 'undefined') {
-        console.error('[Calendar] ❌ FullCalendar no disponible');
+        console.error('[Calendar] ❌ ERROR: FullCalendar no disponible');
         return;
     }
 
@@ -16,7 +16,7 @@ window.initializeCalendar = function (eventsJson, dotNetRef) {
 
     const calendarEl = document.getElementById('calendar');
     if (!calendarEl) {
-        console.error('[Calendar] ❌ #calendar no encontrado');
+        console.error('[Calendar] ❌ ERROR: #calendar no encontrado');
         return;
     }
 
@@ -56,7 +56,7 @@ window.initializeCalendar = function (eventsJson, dotNetRef) {
             dayGridMonth: {
                 dayMaxEvents: 3,
                 displayEventTime: false,
-                fixedWeekCount: false,
+                fixedWeekCount: true,  // ✅ CAMBIADO: true para mostrar siempre 6 filas
                 titleFormat: { month: 'long', year: 'numeric' }
             },
             timeGridWeek: {
@@ -72,7 +72,7 @@ window.initializeCalendar = function (eventsJson, dotNetRef) {
                     minute: '2-digit',
                     hour12: true
                 },
-                titleFormat: { month: 'short', year: 'numeric' },
+                titleFormat: { year: 'numeric', month: 'short' },
                 dayHeaderContent: function (arg) {
                     const dayName = arg.date.toLocaleDateString('es-EC', { weekday: 'short' }).toUpperCase();
                     const dayNumber = arg.date.getDate();
@@ -94,12 +94,12 @@ window.initializeCalendar = function (eventsJson, dotNetRef) {
                     minute: '2-digit',
                     hour12: true
                 },
-                titleFormat: { month: 'short', year: 'numeric' }
+                titleFormat: { year: 'numeric', month: 'short', day: 'numeric' }
             },
             listWeek: {
                 listDayFormat: { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' },
                 noEventsContent: 'No hay eventos para mostrar',
-                titleFormat: { day: 'numeric', month: 'short', year: 'numeric' }
+                titleFormat: { year: 'numeric', month: 'short', day: 'numeric' }
             }
         },
 
@@ -140,6 +140,13 @@ window.initializeCalendar = function (eventsJson, dotNetRef) {
         },
 
         dateClick: function (info) {
+            // Remover selección anterior
+            const allDays = document.querySelectorAll('.fc-daygrid-day');
+            allDays.forEach(day => day.classList.remove('selected-day'));
+
+            // Agregar selección al día clickeado
+            info.dayEl.classList.add('selected-day');
+
             if (dotNetHelper) {
                 dotNetHelper.invokeMethodAsync('OnDateClick', info.dateStr)
                     .catch(err => console.error('[Calendar] Error:', err));
@@ -149,6 +156,17 @@ window.initializeCalendar = function (eventsJson, dotNetRef) {
         eventClick: function (info) {
             info.jsEvent.preventDefault();
             const dateStr = info.event.start.toISOString().split('T')[0];
+
+            // Remover selección anterior
+            const allDays = document.querySelectorAll('.fc-daygrid-day');
+            allDays.forEach(day => day.classList.remove('selected-day'));
+
+            // Buscar y seleccionar el día del evento
+            const dayEl = document.querySelector(`[data-date="${dateStr}"]`);
+            if (dayEl) {
+                dayEl.classList.add('selected-day');
+            }
+
             if (dotNetHelper) {
                 dotNetHelper.invokeMethodAsync('OnDateClick', dateStr)
                     .catch(err => console.error('[Calendar] Error:', err));
@@ -157,22 +175,13 @@ window.initializeCalendar = function (eventsJson, dotNetRef) {
 
         viewDidMount: function (info) {
             console.log('[Calendar] 👁️ Vista:', info.view.type);
+            toggleSidebar(info.view.type);
 
-            // Controlar sidebar
-            const sidebar = document.getElementById('events-sidebar');
-            const wrapper = document.getElementById('calendar-wrapper');
-
-            if (sidebar && wrapper) {
-                if (info.view.type === 'dayGridMonth') {
-                    sidebar.style.display = 'flex';
-                    wrapper.style.right = '320px';
-                } else {
-                    sidebar.style.display = 'none';
-                    wrapper.style.right = '0';
+            setTimeout(() => {
+                if (calendar) {
+                    calendar.updateSize();
                 }
-
-                setTimeout(() => calendar.updateSize(), 100);
-            }
+            }, 100);
         },
 
         eventDrop: async function (info) {
@@ -216,7 +225,36 @@ window.initializeCalendar = function (eventsJson, dotNetRef) {
 
     calendar.render();
     console.log('[Calendar] ✅ Renderizado');
+
+    toggleSidebar('dayGridMonth');
 };
+
+// ✅ FUNCIÓN toggleSidebar
+function toggleSidebar(viewType) {
+    const sidebar = document.getElementById('events-sidebar');
+    const calendarContainer = document.getElementById('calendar-container');
+
+    if (!sidebar || !calendarContainer) {
+        console.error('[Calendar] Elementos no encontrados');
+        return;
+    }
+
+    if (viewType === 'dayGridMonth') {
+        // Vista MES - Mostrar sidebar (70/30)
+        sidebar.style.display = 'flex';
+        calendarContainer.style.flex = '7';
+        console.log('[Calendar] ✅ Sidebar VISIBLE (Mes) 70/30');
+    } else {
+        // Otras vistas - Ocultar sidebar (100%)
+        sidebar.style.display = 'none';
+        calendarContainer.style.flex = '1';
+        console.log('[Calendar] ✅ Sidebar OCULTO 100%');
+    }
+
+    if (calendar) {
+        setTimeout(() => calendar.updateSize(), 50);
+    }
+}
 
 function formatDate(date) {
     if (!date) return '';
