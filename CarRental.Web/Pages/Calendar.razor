@@ -70,7 +70,7 @@
                 </div>
 
                 <div class="flex justify-between items-center mt-4">
-@*                     <span class="font-medium">Leyenda:</span> *@
+                    @*                     <span class="font-medium">Leyenda:</span> *@
                     <div class="flex items-center gap-1.5 text-sm">
                         <div class="w-3 h-3 rounded-full bg-blue-500"></div>
                         <span>Reservado</span>
@@ -210,12 +210,11 @@
         }
     }
 
+    private bool _calendarInitialized = false;
+
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && hasModuleAccess && canView)
-        {
-            await InitializeCalendar();
-        }
+
     }
 
     private async Task LoadPermissions()
@@ -223,6 +222,11 @@
         try
         {
             isLoadingPermissions = true;
+            StateHasChanged(); // Forzar actualización UI
+
+            // Pequeño delay para asegurar que el token esté disponible
+            await Task.Delay(100);
+
             var modulePermissions = await PermissionApiClient.GetModulePermissionsAsync("Rental");
 
             if (modulePermissions != null)
@@ -232,15 +236,25 @@
                 canCreate = modulePermissions.CanCreate;
                 canEdit = modulePermissions.CanEdit;
                 canDelete = modulePermissions.CanDelete;
+
+                Console.WriteLine($"[Calendar] Permisos cargados - Access:{hasModuleAccess}, View:{canView}");
+            }
+            else
+            {
+                Console.WriteLine("[Calendar] modulePermissions es null");
+                hasModuleAccess = false;
             }
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"[Calendar] Error al cargar permisos: {ex.Message}");
             ToastService.ShowError($"Error al cargar permisos: {ex.Message}");
+            hasModuleAccess = false;
         }
         finally
         {
             isLoadingPermissions = false;
+            StateHasChanged();
         }
     }
 
@@ -248,6 +262,7 @@
     {
         try
         {
+            Console.WriteLine("[Calendar] Iniciando LoadData");
             isLoadingData = true;
             StateHasChanged();
 
@@ -256,13 +271,49 @@
 
             await Task.WhenAll(rentalsTask, vehiclesTask);
 
-            rentals = rentalsTask.Result?.Data?.ToList() ?? new List<Rental>();
-            vehicles = vehiclesTask.Result?.Data?.ToList() ?? new List<Vehicle>();
+            var rentalsResult = await rentalsTask;
+            var vehiclesResult = await vehiclesTask;
+
+            if (rentalsResult.IsSuccess && rentalsResult.Data != null)
+            {
+                rentals = rentalsResult.Data.ToList();
+                Console.WriteLine($"[Calendar] Cargados {rentals.Count} alquileres");
+            }
+            else
+            {
+                Console.WriteLine($"[Calendar] Error al cargar rentals: {rentalsResult.ErrorMessage}");
+                rentals = new List<Rental>();
+            }
+
+            if (vehiclesResult.IsSuccess && vehiclesResult.Data != null)
+            {
+                vehicles = vehiclesResult.Data.ToList();
+                Console.WriteLine($"[Calendar] Cargados {vehicles.Count} vehículos");
+            }
+            else
+            {
+                Console.WriteLine($"[Calendar] Error al cargar vehicles: {vehiclesResult.ErrorMessage}");
+                vehicles = new List<Vehicle>();
+            }
 
             UpdateEventsForSelectedDate();
+
+            // ✅ INICIALIZAR CALENDARIO AQUÍ, después de cargar los datos
+            if (!_calendarInitialized)
+            {
+                _calendarInitialized = true;
+                isLoadingData = false;
+                StateHasChanged();
+
+                Console.WriteLine("[Calendar] Esperando 300ms para que UI se renderice...");
+                await Task.Delay(300);
+
+                await InitializeCalendar();
+            }
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"[Calendar] Excepción en LoadData: {ex.Message}");
             ToastService.ShowError($"Error al cargar datos: {ex.Message}");
         }
         finally
@@ -276,12 +327,45 @@
     {
         try
         {
+            Console.WriteLine($"[Calendar] InitializeCalendar START");
+            Console.WriteLine($"[Calendar] - Rentals count: {rentals.Count}");
+            Console.WriteLine($"[Calendar] - Vehicles count: {vehicles.Count}");
+
+            // Verificar que FullCalendar esté disponible
+            var hasFullCalendar = await JSRuntime.InvokeAsync<bool>("eval", "typeof FullCalendar !== 'undefined'");
+            Console.WriteLine($"[Calendar] - FullCalendar disponible: {hasFullCalendar}");
+
+            if (!hasFullCalendar)
+            {
+                Console.WriteLine("[Calendar] ERROR: FullCalendar no está cargado");
+                ToastService.ShowError("Error: Librería FullCalendar no disponible");
+                return;
+            }
+
+            // Verificar que el div existe
+            var calendarExists = await JSRuntime.InvokeAsync<bool>("eval", "document.getElementById('calendar') !== null");
+            Console.WriteLine($"[Calendar] - Div #calendar existe: {calendarExists}");
+
+            if (!calendarExists)
+            {
+                Console.WriteLine("[Calendar] ERROR: Div #calendar no encontrado");
+                ToastService.ShowError("Error: Contenedor del calendario no encontrado");
+                return;
+            }
+
             var events = GetFilteredEvents();
+            Console.WriteLine($"[Calendar] - Eventos filtrados: {events.Count}");
+
             var eventsJson = JsonSerializer.Serialize(events);
+            Console.WriteLine($"[Calendar] - JSON length: {eventsJson.Length}");
+
             await JSRuntime.InvokeVoidAsync("initializeCalendar", eventsJson, DotNetObjectReference.Create(this));
+            Console.WriteLine("[Calendar] InitializeCalendar COMPLETADO");
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"[Calendar] ERROR en InitializeCalendar: {ex.Message}");
+            Console.WriteLine($"[Calendar] Stack trace: {ex.StackTrace}");
             ToastService.ShowError($"Error al inicializar calendario: {ex.Message}");
         }
     }
