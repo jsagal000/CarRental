@@ -1,4 +1,4 @@
-﻿// calendar.js - Con fixedWeekCount true para mostrar todas las semanas
+﻿// calendar.js - SIN headerToolbar, con botones personalizados
 let calendar = null;
 let dotNetHelper = null;
 
@@ -28,19 +28,8 @@ window.initializeCalendar = function (eventsJson, dotNetRef) {
         initialView: 'dayGridMonth',
         locale: 'es',
 
-        headerToolbar: {
-            left: 'prev,next today',
-            center: 'title',
-            right: 'dayGridMonth,timeGridWeek,timeGridDay,listWeek'
-        },
-
-        buttonText: {
-            today: 'Hoy',
-            month: 'Mes',
-            week: 'Semana',
-            day: 'Día',
-            list: 'Lista'
-        },
+        // ✅ SIN headerToolbar - usamos botones personalizados
+        headerToolbar: false,
 
         height: '100%',
 
@@ -56,7 +45,7 @@ window.initializeCalendar = function (eventsJson, dotNetRef) {
             dayGridMonth: {
                 dayMaxEvents: 3,
                 displayEventTime: false,
-                fixedWeekCount: true,  // ✅ CAMBIADO: true para mostrar siempre 6 filas
+                fixedWeekCount: true,
                 titleFormat: { month: 'long', year: 'numeric' }
             },
             timeGridWeek: {
@@ -140,11 +129,9 @@ window.initializeCalendar = function (eventsJson, dotNetRef) {
         },
 
         dateClick: function (info) {
-            // Remover selección anterior
             const allDays = document.querySelectorAll('.fc-daygrid-day');
             allDays.forEach(day => day.classList.remove('selected-day'));
 
-            // Agregar selección al día clickeado
             info.dayEl.classList.add('selected-day');
 
             if (dotNetHelper) {
@@ -157,11 +144,9 @@ window.initializeCalendar = function (eventsJson, dotNetRef) {
             info.jsEvent.preventDefault();
             const dateStr = info.event.start.toISOString().split('T')[0];
 
-            // Remover selección anterior
             const allDays = document.querySelectorAll('.fc-daygrid-day');
             allDays.forEach(day => day.classList.remove('selected-day'));
 
-            // Buscar y seleccionar el día del evento
             const dayEl = document.querySelector(`[data-date="${dateStr}"]`);
             if (dayEl) {
                 dayEl.classList.add('selected-day');
@@ -176,12 +161,17 @@ window.initializeCalendar = function (eventsJson, dotNetRef) {
         viewDidMount: function (info) {
             console.log('[Calendar] 👁️ Vista:', info.view.type);
             toggleSidebar(info.view.type);
+            updateCalendarTitle(); // ✅ Actualizar título
 
             setTimeout(() => {
                 if (calendar) {
                     calendar.updateSize();
                 }
             }, 100);
+        },
+
+        datesSet: function () {
+            updateCalendarTitle(); // ✅ Actualizar título cuando cambian fechas
         },
 
         eventDrop: async function (info) {
@@ -226,8 +216,98 @@ window.initializeCalendar = function (eventsJson, dotNetRef) {
     calendar.render();
     console.log('[Calendar] ✅ Renderizado');
 
+    updateCalendarTitle();
+    updateActiveButton('dayGridMonth');
     toggleSidebar('dayGridMonth');
 };
+
+// ✅ Actualizar título personalizado
+function updateCalendarTitle() {
+    if (!calendar) return;
+
+    const titleEl = document.getElementById('calendar-title');
+    if (!titleEl) return;
+
+    const currentDate = calendar.getDate();
+    const view = calendar.view;
+
+    let titleText = '';
+
+    if (view.type === 'dayGridMonth') {
+        titleText = currentDate.toLocaleDateString('es-EC', { month: 'long', year: 'numeric' });
+    } else if (view.type === 'timeGridWeek') {
+        const start = view.currentStart;
+        const end = new Date(view.currentEnd);
+        end.setDate(end.getDate() - 1);
+        titleText = start.toLocaleDateString('es-EC', { month: 'short', year: 'numeric' });
+    } else if (view.type === 'timeGridDay') {
+        titleText = currentDate.toLocaleDateString('es-EC', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+    } else if (view.type === 'listWeek') {
+        titleText = currentDate.toLocaleDateString('es-EC', { month: 'long', year: 'numeric' });
+    }
+
+    titleEl.textContent = titleText;
+}
+
+// ✅ Navegación del calendario
+window.navigateCalendar = function (action) {
+    if (!calendar) {
+        console.error('[Calendar] Calendario no inicializado');
+        return;
+    }
+
+    if (action === 'prev') {
+        calendar.prev();
+    } else if (action === 'next') {
+        calendar.next();
+    } else if (action === 'today') {
+        calendar.today();
+    }
+
+    updateCalendarTitle();
+};
+
+// ✅ Cambiar vista
+window.cambiarVista = function (viewType) {
+    if (!calendar) {
+        console.error('[Calendar] Calendario no inicializado');
+        return;
+    }
+
+    console.log('[Calendar] Cambiando a vista:', viewType);
+    calendar.changeView(viewType);
+    updateActiveButton(viewType);
+    updateCalendarTitle();
+};
+
+// ✅ Actualizar botón activo
+function updateActiveButton(viewType) {
+    const buttonMap = {
+        'dayGridMonth': 'btn-month',
+        'timeGridWeek': 'btn-week',
+        'timeGridDay': 'btn-day',
+        'listWeek': 'btn-list'
+    };
+
+    // Remover clase activa de todos
+    Object.values(buttonMap).forEach(btnId => {
+        const btn = document.getElementById(btnId);
+        if (btn) {
+            btn.classList.remove('bg-blue-600', 'text-white');
+            btn.classList.add('bg-white', 'text-gray-700');
+        }
+    });
+
+    // Agregar clase activa al botón correspondiente
+    const activeBtnId = buttonMap[viewType];
+    if (activeBtnId) {
+        const btn = document.getElementById(activeBtnId);
+        if (btn) {
+            btn.classList.remove('bg-white', 'text-gray-700');
+            btn.classList.add('bg-blue-600', 'text-white');
+        }
+    }
+}
 
 // ✅ FUNCIÓN toggleSidebar
 function toggleSidebar(viewType) {

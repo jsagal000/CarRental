@@ -1,4 +1,4 @@
-﻿/* calendar.css - Sin movimiento con box-shadow */
+﻿/* calendar.css - Con toolbar externo + todos los estilos originales */
 
 #calendar {
     width: 100% !important;
@@ -10,13 +10,24 @@
     height: 100% !important;
 }
 
-/* Toolbar */
+/* ✅ Toolbar - Funciona tanto dentro como fuera */
 .fc-header-toolbar {
     display: flex !important;
     justify-content: space-between !important;
     align-items: center !important;
     padding: 0 !important;
     margin-bottom: 1rem !important;
+}
+
+/* ✅ Estilos adicionales para toolbar externo */
+#calendar-toolbar-container .fc-header-toolbar {
+    margin-bottom: 0 !important;
+}
+
+#calendar-toolbar-container .fc-toolbar-chunk {
+    display: flex !important;
+    align-items: center !important;
+    gap: 0.5rem !important;
 }
 
 /* ✅ Vista MES - SIN SCROLL, altura completa */
