@@ -33,20 +33,24 @@
 /* ✅ Vista MES - SIN SCROLL, altura completa */
 .fc-dayGridMonth-view {
     height: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
 }
 
     .fc-dayGridMonth-view .fc-scrollgrid {
         height: 100% !important;
+        flex: 1 !important;
     }
 
-    /* ✅ CRÍTICO: Sin overflow para mostrar todas las filas */
+    /* ✅ CRÍTICO: Sin overflow pero con altura fija */
     .fc-dayGridMonth-view .fc-scroller {
         overflow: visible !important;
-        height: auto !important;
+        height: 100% !important;
     }
 
     .fc-dayGridMonth-view .fc-scroller-harness {
         overflow: visible !important;
+        height: 100% !important;
     }
 
     .fc-dayGridMonth-view .fc-daygrid-body {
@@ -57,41 +61,57 @@
         height: 100% !important;
     }
 
-    /* ✅ Tabla ocupa todo el espacio disponible */
-    .fc-dayGridMonth-view .fc-scrollgrid-section-body table {
+    /* ✅ Tabla ocupa 100% del contenedor - 6 filas fijas */
+    .fc-dayGridMonth-view .fc-scrollgrid-section-body {
         height: 100% !important;
     }
+
+        .fc-dayGridMonth-view .fc-scrollgrid-section-body > td {
+            height: 100% !important;
+        }
+
+        .fc-dayGridMonth-view .fc-scrollgrid-section-body table {
+            height: 100% !important;
+            table-layout: fixed !important;
+        }
 
     .fc-dayGridMonth-view tbody {
         height: 100% !important;
+        display: table-row-group !important;
+        width: 100% !important;
     }
 
-        /* ✅ Distribuir filas equitativamente */
+        /* ✅ 6 filas fijas - cada una 16.66% (100% ÷ 6) */
         .fc-dayGridMonth-view tbody tr {
-            height: auto !important;
+            height: 16.66% !important;
         }
 
-    /* ✅ Celdas con altura automática y borde fijo */
+    /* ✅ Celdas con altura calculada automáticamente */
     .fc-dayGridMonth-view .fc-daygrid-day {
         background-color: white !important;
-        border: 1px solid #e5e7eb !important; /* Borde siempre 1px */
+        border: 1px solid #e5e7eb !important;
         position: relative !important;
-        min-height: 100px !important;
+        height: 100% !important;
     }
 
     .fc-dayGridMonth-view .fc-daygrid-day-frame {
-        min-height: 100px !important;
         background-color: white !important;
         padding: 4px !important;
+        height: 100% !important;
+        /* 🔧 AJUSTE DE ALTURA DE FILAS: Cambia este valor para ajustar */
+        /* Con calc(130vh - 340px) y 6 filas fijas */
+        /* Si quieres MÁS espacio vertical: aumenta a 85px, 90px o 95px */
+        /* Si quieres MENOS espacio vertical: reduce a 65px, 70px o 75px */
+        min-height: 75px !important;
     }
 
-    /* Días de otros meses (números grises claros) */
+    /* Días de otros meses - color más visible */
     .fc-dayGridMonth-view .fc-day-other {
-        background-color: white !important;
+        background-color: #f9fafb !important;
     }
 
         .fc-dayGridMonth-view .fc-day-other .fc-daygrid-day-number {
-            color: #d1d5db !important;
+            color: #9ca3af !important;
         }
 
     /* ✅ DÍA ACTUAL (hoy) - Círculo azul */
@@ -136,11 +156,11 @@
         padding: 0 !important;
     }
 
-/* Vistas SEMANA/DÍA - CON SCROLL */
+/* Vistas SEMANA/DÍA - CON SCROLL ajustado a 130vh */
 .fc-timeGridWeek-view .fc-scroller,
 .fc-timeGridDay-view .fc-scroller {
     overflow-y: auto !important;
-    max-height: calc(100vh - 300px) !important;
+    max-height: calc(130vh - 340px) !important;
 }
 
 .fc-timeGridWeek-view .fc-timegrid-body,
@@ -152,10 +172,10 @@
     height: 50px !important;
 }
 
-/* Vista LISTA - CON SCROLL */
+/* Vista LISTA - CON SCROLL ajustado a 130vh */
 .fc-listWeek-view .fc-scroller {
     overflow-y: auto !important;
-    max-height: calc(100vh - 250px) !important;
+    max-height: calc(130vh - 340px) !important;
 }
 
 /* Scrollbar */
@@ -181,4 +201,13 @@
 /* Botones */
 .fc-button {
     text-transform: capitalize !important;
+}
+
+/* ✅ Ocultar eventos en vista MES */
+.fc-dayGridMonth-view .fc-daygrid-event-harness {
+    display: none !important;
+}
+
+.fc-dayGridMonth-view .fc-event {
+    display: none !important;
 }

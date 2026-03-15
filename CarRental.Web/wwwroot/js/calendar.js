@@ -43,9 +43,9 @@ window.initializeCalendar = function (eventsJson, dotNetRef) {
 
         views: {
             dayGridMonth: {
-                dayMaxEvents: 3,
+                dayMaxEvents: false,  // ✅ Sin mostrar eventos en el mes
                 displayEventTime: false,
-                fixedWeekCount: true,
+                fixedWeekCount: true,  // ✅ Solo las filas necesarias del mes
                 titleFormat: { month: 'long', year: 'numeric' }
             },
             timeGridWeek: {
