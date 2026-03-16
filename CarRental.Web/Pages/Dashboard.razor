@@ -3,298 +3,324 @@
 @inject CarRental.Web.Services.PermissionApiClient PermissionApiClient
 @inject NavigationManager NavigationManager
 @inject IToastService ToastService
+@inject IJSRuntime JSRuntime
 @using Blazored.Toast.Services
 @using CarRental.Web.Services
 
-<div class="min-h-screen bg-gray-100 p-4 md:p-6">
+<div class="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-6">
     <div class="max-w-7xl mx-auto">
 
         <!-- Header -->
         <div class="mb-6">
-            <h1 class="text-3xl md:text-4xl font-bold text-gray-800">Dashboard</h1>
+            <h1 class="text-3xl font-bold text-gray-800">Dashboard - @GetGreeting() 👋</h1>
             <p class="text-gray-600 mt-1">@DateTime.Now.ToString("dddd, dd 'de' MMMM 'de' yyyy", new System.Globalization.CultureInfo("es-ES"))</p>
         </div>
 
         @if (isLoadingPermissions)
         {
-            <div class="bg-white p-12 rounded-lg shadow text-center">
-                <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-500 mx-auto mb-4"></div>
-                <p class="text-gray-600 text-lg">Cargando información...</p>
+            <div class="bg-white p-8 rounded-xl shadow text-center">
+                <div class="flex flex-col items-center justify-center space-y-4">
+                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                    <p class="text-gray-600 text-lg">Cargando información...</p>
+                </div>
             </div>
         }
         else if (!hasModuleAccess || !canView)
         {
-            <div class="bg-white p-12 rounded-lg shadow text-center">
-                <svg class="w-20 h-20 text-red-500 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-                <p class="text-gray-800 text-xl font-semibold mb-2">Acceso no autorizado</p>
-                <p class="text-gray-600">No tienes permisos para acceder al dashboard</p>
+            <div class="bg-white p-8 rounded-xl shadow text-center">
+                <p class="text-gray-800 text-lg">Acceso no autorizado</p>
+                <p class="text-gray-600 text-sm mt-2">No tienes permisos para acceder al dashboard</p>
             </div>
         }
         else
         {
             @if (isLoadingData)
             {
-                <div class="bg-white p-12 rounded-lg shadow text-center">
-                    <div class="animate-spin rounded-full h-16 w-16 border-b-4 border-blue-500 mx-auto mb-4"></div>
-                    <p class="text-gray-600 text-lg">Cargando datos del dashboard...</p>
+                <div class="bg-white p-8 rounded-xl shadow text-center">
+                    <div class="flex flex-col items-center justify-center space-y-4">
+                        <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                        <p class="text-gray-600 text-lg">Cargando datos...</p>
+                    </div>
                 </div>
             }
             else if (!string.IsNullOrEmpty(errorMessage))
             {
                 <div class="bg-red-50 border-l-4 border-red-500 p-4 rounded">
-                    <div class="flex items-center">
-                        <svg class="w-6 h-6 text-red-500 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                        </svg>
-                        <p class="text-red-800 font-medium">@errorMessage</p>
-                    </div>
+                    <p class="text-red-800">@errorMessage</p>
                 </div>
             }
             else
             {
-                <!-- Tarjetas de Estadísticas -->
-                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-6">
-                    <!-- Vehículos Alquilados -->
-                    <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-green-500 hover:shadow-lg transition-shadow">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-gray-500 text-sm font-medium uppercase mb-1">Alquilados</p>
-                                <p class="text-3xl font-bold text-gray-800">@vehiculosAlquilados.Count</p>
-                                <p class="text-gray-500 text-xs mt-1">En renta actualmente</p>
-                            </div>
-                            <div class="bg-green-100 p-3 rounded-full">
-                                <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <!-- KPIs Principales -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+
+                    <!-- Total Flota -->
+                    <div class="bg-white rounded-xl shadow p-6 border-l-4 border-blue-600">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="bg-blue-100 p-3 rounded-lg">
+                                <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                                 </svg>
                             </div>
                         </div>
+                        <p class="text-sm text-gray-500 uppercase font-medium">Total Flota</p>
+                        <p class="text-3xl font-bold text-gray-800 mt-1">@GetTotalVehiculos()</p>
+                        <p class="text-sm text-gray-600 mt-2">@vehiculosAlquilados.Count alquilados • @vehiculosDisponibles.Count disponibles</p>
                     </div>
 
-                    <!-- Vehículos Disponibles -->
-                    <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-blue-500 hover:shadow-lg transition-shadow">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-gray-500 text-sm font-medium uppercase mb-1">Disponibles</p>
-                                <p class="text-3xl font-bold text-gray-800">@vehiculosDisponibles.Count</p>
-                                <p class="text-gray-500 text-xs mt-1">Listos para rentar</p>
-                            </div>
-                            <div class="bg-blue-100 p-3 rounded-full">
-                                <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                    <!-- Tasa de Ocupación -->
+                    <div class="bg-white rounded-xl shadow p-6 border-l-4 border-green-600">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="bg-green-100 p-3 rounded-lg">
+                                <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                                 </svg>
                             </div>
                         </div>
+                        <p class="text-sm text-gray-500 uppercase font-medium">Tasa de Ocupación</p>
+                        <p class="text-3xl font-bold text-gray-800 mt-1">@GetOccupancyRate()%</p>
+                        <p class="text-sm text-gray-600 mt-2">Eficiencia operativa</p>
+                    </div>
+
+                    <!-- Ingresos Activos -->
+                    <div class="bg-white rounded-xl shadow p-6 border-l-4 border-purple-600">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="bg-purple-100 p-3 rounded-lg">
+                                <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                            </div>
+                        </div>
+                        <p class="text-sm text-gray-500 uppercase font-medium">Ingresos Activos</p>
+                        <p class="text-3xl font-bold text-gray-800 mt-1">@GetActiveRevenue()</p>
+                        <p class="text-sm text-gray-600 mt-2">De @vehiculosAlquilados.Count alquileres</p>
                     </div>
 
                     <!-- Cumpleaños Hoy -->
-                    <div class="bg-white rounded-lg shadow-md p-6 border-l-4 border-yellow-500 hover:shadow-lg transition-shadow">
-                        <div class="flex items-center justify-between">
-                            <div>
-                                <p class="text-gray-500 text-sm font-medium uppercase mb-1">Cumpleaños</p>
-                                <p class="text-3xl font-bold text-gray-800">@dashboardData.TodayBirthdays.Count</p>
-                                <p class="text-gray-500 text-xs mt-1">Clientes hoy</p>
-                            </div>
-                            <div class="bg-yellow-100 p-3 rounded-full">
+                    <div class="bg-white rounded-xl shadow p-6 border-l-4 border-yellow-500">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="bg-yellow-100 p-3 rounded-lg">
                                 <span class="text-3xl">🎂</span>
                             </div>
                         </div>
+                        <p class="text-sm text-gray-500 uppercase font-medium">Cumpleaños Hoy</p>
+                        <p class="text-3xl font-bold text-gray-800 mt-1">@dashboardData.TodayBirthdays.Count</p>
+                        <p class="text-sm text-gray-600 mt-2">@(dashboardData.TodayBirthdays.Count == 1 ? "Cliente" : "Clientes") celebrando</p>
                     </div>
                 </div>
 
-                <!-- Sección Principal: 3 Tablas con ancho completo y altura limitada -->
-                <div class="space-y-6">
+                <!-- Grid: Gráficos -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
 
-                    <!-- Vehículos Alquilados -->
-                    <div class="bg-white rounded-lg shadow-md overflow-hidden">
-                        <div class="bg-green-600 px-6 py-4">
-                            <h2 class="text-xl font-bold text-white flex items-center justify-between">
-                                <span>Vehículos Alquilados</span>
-                                <span class="bg-green-700 px-3 py-1 rounded-full text-sm">@vehiculosAlquilados.Count</span>
-                            </h2>
+                    <!-- Gráfico Estado de Flota -->
+                    <div class="lg:col-span-1 bg-white rounded-xl shadow p-6">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center">
+                            <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
+                            </svg>
+                            Estado de la Flota
+                        </h3>
+                        <canvas id="fleetStatusChart" style="max-height: 300px;"></canvas>
+                        <div class="mt-4 space-y-2">
+                            <div class="flex items-center justify-between text-sm">
+                                <div class="flex items-center">
+                                    <div class="w-3 h-3 rounded-full bg-green-500 mr-2"></div>
+                                    <span class="text-gray-600">Alquilados</span>
+                                </div>
+                                <span class="font-bold text-gray-800">@vehiculosAlquilados.Count</span>
+                            </div>
+                            <div class="flex items-center justify-between text-sm">
+                                <div class="flex items-center">
+                                    <div class="w-3 h-3 rounded-full bg-blue-500 mr-2"></div>
+                                    <span class="text-gray-600">Disponibles</span>
+                                </div>
+                                <span class="font-bold text-gray-800">@vehiculosDisponibles.Count</span>
+                            </div>
                         </div>
-
-                        @if (!vehiculosAlquilados.Any())
-                        {
-                            <div class="p-8 text-center">
-                                <p class="text-gray-500">No hay vehículos alquilados en este momento</p>
-                            </div>
-                        }
-                        else
-                        {
-                            <div class="overflow-x-auto overflow-y-auto max-h-96">
-                                <table class="w-full">
-                                    <thead class="bg-gray-50 sticky top-0">
-                                        <tr>
-                                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Vehículo</th>
-                                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Cliente</th>
-                                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Propiedad</th>
-                                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Retorno</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="divide-y divide-gray-200">
-                                        @foreach (var vehiculo in vehiculosAlquilados)
-                                        {
-                                            <tr class="hover:bg-green-50 transition-colors">
-                                                <td class="px-6 py-4">
-                                                    <div class="font-semibold text-gray-900">@vehiculo.Make @vehiculo.Model</div>
-                                                    <div class="text-sm text-gray-600">@vehiculo.Year • @vehiculo.LicensePlate</div>
-                                                </td>
-                                                <td class="px-6 py-4">
-                                                    <div class="text-sm font-medium text-gray-900">@vehiculo.CustomerName</div>
-                                                </td>
-                                                <td class="px-6 py-4">
-                                                    @if (vehiculo.Ownership == "Empresa")
-                                                    {
-                                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                                                            Empresa
-                                                        </span>
-                                                    }
-                                                    else
-                                                    {
-                                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                                                            Socio
-                                                        </span>
-                                                    }
-                                                </td>
-                                                <td class="px-6 py-4">
-                                                    <div class="text-sm font-medium text-gray-900">@vehiculo.EndDate?.ToString("dd/MM/yyyy")</div>
-                                                    <div class="text-xs text-gray-500">@vehiculo.EndDate?.ToString("HH:mm")</div>
-                                                </td>
-                                            </tr>
-                                        }
-                                    </tbody>
-                                </table>
-                            </div>
-                        }
                     </div>
 
-                    <!-- Vehículos Disponibles -->
-                    <div class="bg-white rounded-lg shadow-md overflow-hidden">
-                        <div class="bg-blue-600 px-6 py-4">
-                            <h2 class="text-xl font-bold text-white flex items-center justify-between">
-                                <span>Vehículos Disponibles</span>
-                                <span class="bg-blue-700 px-3 py-1 rounded-full text-sm">@vehiculosDisponibles.Count</span>
+                    <!-- Gráfico Propiedad -->
+                    <div class="lg:col-span-2 bg-white rounded-xl shadow p-6">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center">
+                            <svg class="w-5 h-5 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                            </svg>
+                            Distribución por Propiedad
+                        </h3>
+                        <canvas id="ownershipChart" style="max-height: 300px;"></canvas>
+                    </div>
+                </div>
+
+                <!-- Alquileres Activos -->
+                <div class="bg-white rounded-xl shadow mb-6">
+                    <div class="bg-green-600 px-6 py-4 rounded-t-xl">
+                        <div class="flex items-center justify-between">
+                            <h2 class="text-xl font-bold text-white flex items-center">
+                                <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                                </svg>
+                                Alquileres Activos
                             </h2>
+                            <span class="bg-green-700 px-3 py-1 rounded-full text-sm text-white">
+                                @vehiculosAlquilados.Count
+                            </span>
+                        </div>
+                    </div>
+
+                    @if (!vehiculosAlquilados.Any())
+                    {
+                        <div class="p-8 text-center">
+                            <p class="text-gray-500">No hay vehículos alquilados</p>
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="overflow-x-auto">
+                            <table class="w-full">
+                                <thead class="bg-gray-50">
+                                    <tr>
+                                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Vehículo</th>
+                                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Cliente</th>
+                                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Propiedad</th>
+                                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Retorno</th>
+                                        <th class="px-6 py-3 text-left text-xs font-bold text-gray-700 uppercase">Días Restantes</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-gray-200">
+                                    @foreach (var vehiculo in vehiculosAlquilados)
+                                    {
+                                        <tr class="hover:bg-gray-50">
+                                            <td class="px-6 py-4">
+                                                <div class="font-semibold text-gray-900">@vehiculo.Make @vehiculo.Model</div>
+                                                <div class="text-sm text-gray-600">@vehiculo.Year • @vehiculo.LicensePlate</div>
+                                            </td>
+                                            <td class="px-6 py-4 text-sm text-gray-900">@vehiculo.CustomerName</td>
+                                            <td class="px-6 py-4">
+                                                @if (vehiculo.Ownership == "Empresa")
+                                                {
+                                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+                                                        🏢 Empresa
+                                                    </span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
+                                                        👤 Socio
+                                                    </span>
+                                                }
+                                            </td>
+                                            <td class="px-6 py-4">
+                                                <div class="text-sm text-gray-900">@vehiculo.EndDate?.ToString("dd/MM/yyyy")</div>
+                                                <div class="text-xs text-gray-500">@vehiculo.EndDate?.ToString("HH:mm")</div>
+                                            </td>
+                                            <td class="px-6 py-4">
+                                                @{
+                                                    var days = GetDaysRemaining(vehiculo.EndDate);
+                                                }
+                                                @if (days < 0)
+                                                {
+                                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-red-100 text-red-800">
+                                                        ⚠️ Vencido
+                                                    </span>
+                                                }
+                                                else if (days == 0)
+                                                {
+                                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-yellow-100 text-yellow-800">
+                                                        ⏰ Hoy
+                                                    </span>
+                                                }
+                                                else if (days <= 2)
+                                                {
+                                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-orange-100 text-orange-800">
+                                                        📅 @days día@(days == 1 ? "" : "s")
+                                                    </span>
+                                                }
+                                                else
+                                                {
+                                                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold bg-green-100 text-green-800">
+                                                        ✓ @days días
+                                                    </span>
+                                                }
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+                    }
+                </div>
+
+                <!-- Grid: Disponibles + Cumpleaños -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+
+                    <!-- Disponibles -->
+                    <div class="bg-white rounded-xl shadow">
+                        <div class="bg-blue-600 px-6 py-4 rounded-t-xl">
+                            <h2 class="text-xl font-bold text-white">Vehículos Disponibles (@vehiculosDisponibles.Count)</h2>
                         </div>
 
                         @if (!vehiculosDisponibles.Any())
                         {
                             <div class="p-8 text-center">
-                                <p class="text-gray-500">No hay vehículos disponibles en este momento</p>
+                                <p class="text-gray-500">No hay vehículos disponibles</p>
                             </div>
                         }
                         else
                         {
-                            <div class="overflow-x-auto overflow-y-auto max-h-96">
-                                <table class="w-full">
-                                    <thead class="bg-gray-50 sticky top-0">
-                                        <tr>
-                                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Vehículo</th>
-                                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Año</th>
-                                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Propiedad</th>
-                                            <th class="px-6 py-3 text-left text-xs font-semibold text-gray-700 uppercase">Tarifa/Día</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody class="divide-y divide-gray-200">
-                                        @foreach (var vehiculo in vehiculosDisponibles)
-                                        {
-                                            <tr class="hover:bg-blue-50 transition-colors">
-                                                <td class="px-6 py-4">
-                                                    <div class="font-semibold text-gray-900">@vehiculo.Make @vehiculo.Model</div>
-                                                    <div class="text-sm text-gray-600">@vehiculo.LicensePlate</div>
-                                                </td>
-                                                <td class="px-6 py-4">
-                                                    <span class="text-sm font-medium text-gray-900">@vehiculo.Year</span>
-                                                </td>
-                                                <td class="px-6 py-4">
-                                                    @if (vehiculo.Ownership == "Empresa")
-                                                    {
-                                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-                                                            Empresa
-                                                        </span>
-                                                    }
-                                                    else
-                                                    {
-                                                        <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-orange-100 text-orange-800">
-                                                            Socio
-                                                        </span>
-                                                    }
-                                                </td>
-                                                <td class="px-6 py-4">
-                                                    <span class="text-base font-bold text-green-600">${@vehiculo.DailyRate.ToString("N2")}</span>
-                                                </td>
-                                            </tr>
-                                        }
-                                    </tbody>
-                                </table>
+                            <div class="divide-y divide-gray-200">
+                                @foreach (var vehiculo in vehiculosDisponibles.Take(5))
+                                {
+                                    <div class="p-4 hover:bg-gray-50">
+                                        <div class="flex justify-between items-center">
+                                            <div>
+                                                <div class="font-semibold text-gray-900">@vehiculo.Make @vehiculo.Model</div>
+                                                <div class="text-sm text-gray-600">@vehiculo.LicensePlate • @vehiculo.Year</div>
+                                            </div>
+                                            <div class="text-right">
+                                                <div class="text-lg font-bold text-green-600">$@vehiculo.DailyRate.ToString("N0")</div>
+                                                <div class="text-xs text-gray-500">por día</div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                }
                             </div>
                         }
                     </div>
 
-                    <!-- Cumpleaños Hoy -->
-                    <div class="bg-white rounded-lg shadow-md overflow-hidden">
-                        <div class="bg-yellow-500 px-6 py-4">
-                            <h2 class="text-xl font-bold text-white flex items-center justify-between">
-                                <span class="flex items-center">
-                                    <span class="mr-2">🎂</span>
-                                    Cumpleaños Hoy
-                                </span>
-                                <span class="bg-yellow-600 px-3 py-1 rounded-full text-sm">@dashboardData.TodayBirthdays.Count</span>
+                    <!-- Cumpleaños -->
+                    <div class="bg-white rounded-xl shadow">
+                        <div class="bg-yellow-500 px-6 py-4 rounded-t-xl">
+                            <h2 class="text-xl font-bold text-white flex items-center">
+                                <span class="mr-2">🎂</span>
+                                Cumpleaños Hoy (@dashboardData.TodayBirthdays.Count)
                             </h2>
                         </div>
 
                         @if (!dashboardData.TodayBirthdays.Any())
                         {
                             <div class="p-8 text-center">
-                                <div class="text-5xl mb-3">🎈</div>
+                                <span class="text-5xl mb-2 block">🎉</span>
                                 <p class="text-gray-500">No hay cumpleaños hoy</p>
                             </div>
                         }
                         else
                         {
-                            <div class="overflow-y-auto max-h-96">
-                                <div class="divide-y divide-gray-200">
-                                    @foreach (var customer in dashboardData.TodayBirthdays)
-                                    {
-                                        <div class="p-6 hover:bg-yellow-50 transition-colors">
-                                            <div class="flex items-start justify-between mb-3">
-                                                <div class="flex items-center flex-1">
-                                                    <div class="bg-yellow-100 rounded-full p-3 mr-4 flex-shrink-0">
-                                                        <span class="text-2xl">🎉</span>
-                                                    </div>
-                                                    <div class="flex-1">
-                                                        <h3 class="font-bold text-gray-900 text-lg">@customer.CustomerName</h3>
-                                                        <span class="inline-flex items-center px-3 py-1 rounded-md text-sm font-semibold bg-yellow-100 text-yellow-800 mt-1">
-                                                            @customer.Age años
-                                                        </span>
-                                                    </div>
-                                                </div>
+                            <div class="divide-y divide-gray-200">
+                                @foreach (var birthday in dashboardData.TodayBirthdays)
+                                {
+                                    <div class="p-4 hover:bg-gray-50">
+                                        <div class="flex items-center">
+                                            <div class="bg-yellow-100 p-2 rounded-full mr-3">
+                                                <span class="text-2xl">🎉</span>
                                             </div>
-
-                                            <div class="ml-16 space-y-2 text-sm text-gray-600">
-                                                <div class="flex items-center">
-                                                    <svg class="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                                                    </svg>
-                                                    <span class="font-medium">Año: @customer.BirthYear</span>
-                                                </div>
-                                                <div class="flex items-center">
-                                                    <svg class="w-4 h-4 mr-2 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
-                                                    </svg>
-                                                    <span>@customer.PhoneNumber</span>
-                                                </div>
+                                            <div class="flex-1">
+                                                <div class="font-semibold text-gray-900">@birthday.CustomerName</div>
+                                                <div class="text-sm text-gray-600">@birthday.Age años • @birthday.PhoneNumber</div>
                                             </div>
-
-                                            <a href="/customers/details/@customer.CustomerId"
-                                               class="mt-4 block text-center bg-yellow-500 hover:bg-yellow-600 text-white font-medium py-2 px-4 rounded transition-colors text-sm">
-                                                Ver perfil
-                                            </a>
+                                            <div class="text-yellow-600 font-bold text-xl">@birthday.Age</div>
                                         </div>
-                                    }
-                                </div>
+                                    </div>
+                                }
                             </div>
                         }
                     </div>
@@ -305,89 +331,149 @@
 </div>
 
 @code {
+    private bool isLoadingPermissions = true;
+    private bool isLoadingData = false;
+    private bool hasModuleAccess = false;
+    private bool canView = false;
+    private string errorMessage = string.Empty;
+
     private DashboardDataDto dashboardData = new();
     private List<VehicleInfoDto> vehiculosAlquilados = new();
     private List<VehicleInfoDto> vehiculosDisponibles = new();
 
-    private string errorMessage = string.Empty;
-    private bool isLoadingPermissions = true;
-    private bool isLoadingData = false;
-
-    private bool hasModuleAccess = false;
-    private bool canView = false;
-
     protected override async Task OnInitializedAsync()
     {
         await LoadPermissions();
-
         if (hasModuleAccess && canView)
         {
             await LoadDashboardData();
         }
-
         isLoadingPermissions = false;
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender && !isLoadingData && hasModuleAccess && canView)
+        {
+            await InitializeCharts();
+        }
     }
 
     private async Task LoadPermissions()
     {
         try
         {
-            var perms = await PermissionApiClient.GetModulePermissionsAsync("Dashboard");
-            hasModuleAccess = perms.HasAccess;
-
-            if (!hasModuleAccess) return;
-
-            canView = perms.CanView;
+            var result = await PermissionApiClient.GetModulePermissionsAsync("Dashboard");
+            if (result != null)
+            {
+                hasModuleAccess = result.HasAccess;
+                canView = result.CanView;
+            }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error al cargar permisos: {ex.Message}");
+            Console.WriteLine($"Error: {ex.Message}");
             hasModuleAccess = false;
         }
     }
 
     private async Task LoadDashboardData()
     {
-        isLoadingData = true;
-        errorMessage = string.Empty;
-
         try
         {
-            var dataResult = await DashboardApiClient.GetDashboardDataAsync();
-            if (dataResult.IsSuccess && dataResult.Data != null)
+            isLoadingData = true;
+            errorMessage = string.Empty;
+
+            var result = await DashboardApiClient.GetDashboardDataAsync();
+            if (result.IsSuccess && result.Data != null)
             {
-                dashboardData = dataResult.Data;
+                dashboardData = result.Data;
+
+                var vehiclesResult = await DashboardApiClient.GetVehiclesInfoAsync();
+                if (vehiclesResult.IsSuccess && vehiclesResult.Data != null)
+                {
+                    vehiculosAlquilados = vehiclesResult.Data.Where(v => v.State == "Alquilado").ToList();
+                    vehiculosDisponibles = vehiclesResult.Data.Where(v => v.State == "Disponible").ToList();
+                }
             }
             else
             {
-                errorMessage = $"Error al cargar datos: {dataResult.ErrorMessage}";
-                ToastService.ShowError(errorMessage);
-            }
-
-            var vehiclesResult = await DashboardApiClient.GetVehiclesInfoAsync();
-            if (vehiclesResult.IsSuccess && vehiclesResult.Data != null)
-            {
-                vehiculosAlquilados = vehiclesResult.Data
-                    .Where(v => v.State == "Alquilado")
-                    .OrderBy(v => v.Make)
-                    .ThenBy(v => v.Model)
-                    .ToList();
-
-                vehiculosDisponibles = vehiclesResult.Data
-                    .Where(v => v.State == "Disponible")
-                    .OrderBy(v => v.Make)
-                    .ThenBy(v => v.Model)
-                    .ToList();
+                errorMessage = result.ErrorMessage ?? "Error al cargar datos";
             }
         }
         catch (Exception ex)
         {
-            errorMessage = $"Error inesperado: {ex.Message}";
-            ToastService.ShowError(errorMessage);
+            errorMessage = $"Error: {ex.Message}";
         }
         finally
         {
             isLoadingData = false;
         }
+    }
+
+    private async Task InitializeCharts()
+    {
+        try
+        {
+            var fleetData = new
+            {
+                labels = new[] { "Alquilados", "Disponibles" },
+                datasets = new[] {
+                    new {
+                        data = new[] { vehiculosAlquilados.Count, vehiculosDisponibles.Count },
+                        backgroundColor = new[] { "#10b981", "#3b82f6" },
+                        borderWidth = 0
+                    }
+                }
+            };
+            await JSRuntime.InvokeVoidAsync("createDoughnutChart", "fleetStatusChart", fleetData);
+
+            var empresaAlq = vehiculosAlquilados.Count(v => v.Ownership == "Empresa");
+            var socioAlq = vehiculosAlquilados.Count(v => v.Ownership == "Socio");
+            var empresaDis = vehiculosDisponibles.Count(v => v.Ownership == "Empresa");
+            var socioDis = vehiculosDisponibles.Count(v => v.Ownership == "Socio");
+
+            var ownershipData = new
+            {
+                labels = new[] { "Empresa", "Socio" },
+                datasets = new[] {
+                    new { label = "Alquilados", data = new[] { empresaAlq, socioAlq }, backgroundColor = "#10b981" },
+                    new { label = "Disponibles", data = new[] { empresaDis, socioDis }, backgroundColor = "#3b82f6" }
+                }
+            };
+            await JSRuntime.InvokeVoidAsync("createBarChart", "ownershipChart", ownershipData);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error gráficos: {ex.Message}");
+        }
+    }
+
+    private string GetGreeting()
+    {
+        var hour = DateTime.Now.Hour;
+        if (hour < 12) return "Buenos días";
+        if (hour < 18) return "Buenas tardes";
+        return "Buenas noches";
+    }
+
+    private int GetTotalVehiculos() => vehiculosAlquilados.Count + vehiculosDisponibles.Count;
+
+    private int GetOccupancyRate()
+    {
+        var total = GetTotalVehiculos();
+        return total == 0 ? 0 : (int)Math.Round((double)vehiculosAlquilados.Count / total * 100);
+    }
+
+    private string GetActiveRevenue()
+    {
+        var total = vehiculosAlquilados.Sum(v => v.DailyRate);
+        return total.ToString("C0");
+    }
+
+    private int GetDaysRemaining(DateTime? endDate)
+    {
+        if (!endDate.HasValue) return 0;
+        return (endDate.Value.Date - DateTime.Now.Date).Days;
     }
 }
