@@ -51,76 +51,105 @@
             }
             else
             {
-                <!-- KPIs Principales -->
+                <!-- KPIs Principales - CLICKEABLES -->
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
 
-                    <!-- Total Flota -->
-                    <div class="bg-white rounded-xl shadow p-6 border-l-4 border-blue-600">
+                    <!-- Total Flota - CLICKEABLE → /vehicles -->
+                    <div class="bg-white rounded-xl shadow p-6 border-l-4 border-blue-600 cursor-pointer hover:shadow-lg transition-shadow"
+                         @onclick="@(() => NavigationManager.NavigateTo("/vehicles"))">
                         <div class="flex items-center justify-between mb-4">
                             <div class="bg-blue-100 p-3 rounded-lg">
                                 <svg class="w-8 h-8 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
                                 </svg>
                             </div>
+                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                            </svg>
                         </div>
                         <p class="text-sm text-gray-500 uppercase font-medium">Total Flota</p>
                         <p class="text-3xl font-bold text-gray-800 mt-1">@GetTotalVehiculos()</p>
                         <p class="text-sm text-gray-600 mt-2">@vehiculosAlquilados.Count alquilados • @vehiculosDisponibles.Count disponibles</p>
                     </div>
 
-                    <!-- Tasa de Ocupación -->
-                    <div class="bg-white rounded-xl shadow p-6 border-l-4 border-green-600">
+                    <!-- Total Alquileres del Mes - CLICKEABLE → /rentals -->
+                    <div class="bg-white rounded-xl shadow p-6 border-l-4 border-green-600 cursor-pointer hover:shadow-lg transition-shadow"
+                         @onclick="@(() => NavigationManager.NavigateTo("/rentals"))">
                         <div class="flex items-center justify-between mb-4">
                             <div class="bg-green-100 p-3 rounded-lg">
                                 <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                            </div>
+                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                            </svg>
+                        </div>
+                        <p class="text-sm text-gray-500 uppercase font-medium">Alquileres del Mes</p>
+                        <p class="text-3xl font-bold text-gray-800 mt-1">@GetAlquileresDelMes()</p>
+                        <p class="text-sm text-gray-600 mt-2">@DateTime.Now.ToString("MMMM yyyy", new System.Globalization.CultureInfo("es-ES"))</p>
+                    </div>
+
+                    <!-- Total Clientes Activos del Mes -->
+                    <div class="bg-white rounded-xl shadow p-6 border-l-4 border-green-600 cursor-pointer hover:shadow-lg transition-shadow"
+                         @onclick="@(() => NavigationManager.NavigateTo("/customers"))">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="bg-purple-100 p-3 rounded-lg">
+                                <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                                </svg>
+                            </div>
+                            <svg class="w-5 h-5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                            </svg>
+                        </div>
+                        <p class="text-sm text-gray-500 uppercase font-medium">Clientes Activos</p>
+                        <p class="text-3xl font-bold text-gray-800 mt-1">@GetClientesActivosDelMes()</p>
+                        <p class="text-sm text-gray-600 mt-2">Han alquilado este mes</p>
+                    </div>
+
+                    <!-- Tasa de Ocupación -->
+                    <div class="bg-white rounded-xl shadow p-6 border-l-4 border-orange-500">
+                        <div class="flex items-center justify-between mb-4">
+                            <div class="bg-orange-100 p-3 rounded-lg">
+                                <svg class="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                                 </svg>
                             </div>
                         </div>
                         <p class="text-sm text-gray-500 uppercase font-medium">Tasa de Ocupación</p>
                         <p class="text-3xl font-bold text-gray-800 mt-1">@GetOccupancyRate()%</p>
-                        <p class="text-sm text-gray-600 mt-2">Eficiencia operativa</p>
-                    </div>
-
-                    <!-- Ingresos Activos -->
-                    <div class="bg-white rounded-xl shadow p-6 border-l-4 border-purple-600">
-                        <div class="flex items-center justify-between mb-4">
-                            <div class="bg-purple-100 p-3 rounded-lg">
-                                <svg class="w-8 h-8 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                                </svg>
-                            </div>
-                        </div>
-                        <p class="text-sm text-gray-500 uppercase font-medium">Ingresos Activos</p>
-                        <p class="text-3xl font-bold text-gray-800 mt-1">@GetActiveRevenue()</p>
-                        <p class="text-sm text-gray-600 mt-2">De @vehiculosAlquilados.Count alquileres</p>
-                    </div>
-
-                    <!-- Cumpleaños Hoy -->
-                    <div class="bg-white rounded-xl shadow p-6 border-l-4 border-yellow-500">
-                        <div class="flex items-center justify-between mb-4">
-                            <div class="bg-yellow-100 p-3 rounded-lg">
-                                <span class="text-3xl">🎂</span>
-                            </div>
-                        </div>
-                        <p class="text-sm text-gray-500 uppercase font-medium">Cumpleaños Hoy</p>
-                        <p class="text-3xl font-bold text-gray-800 mt-1">@dashboardData.TodayBirthdays.Count</p>
-                        <p class="text-sm text-gray-600 mt-2">@(dashboardData.TodayBirthdays.Count == 1 ? "Cliente" : "Clientes") celebrando</p>
+                        <p class="text-sm text-gray-600 mt-2">Eficiencia actual</p>
                     </div>
                 </div>
 
                 <!-- Grid: Gráficos -->
                 <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
 
+                    <!-- Gráfico Alquileres por Tipo de Vehículo -->
+                    <div class="lg:col-span-2 bg-white rounded-xl shadow p-6">
+                        <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center">
+                            <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                            </svg>
+                            Alquileres del Mes por Tipo de Vehículo
+                        </h3>
+                        <div style="position: relative; height: 300px;">
+                            <canvas id="vehicleTypeChart"></canvas>
+                        </div>
+                    </div>
+
                     <!-- Gráfico Estado de Flota -->
                     <div class="lg:col-span-1 bg-white rounded-xl shadow p-6">
                         <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center">
-                            <svg class="w-5 h-5 mr-2 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <svg class="w-5 h-5 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 3.055A9.001 9.001 0 1020.945 13H11V3.055z" />
                             </svg>
-                            Estado de la Flota
+                            Estado Actual
                         </h3>
-                        <canvas id="fleetStatusChart" style="max-height: 300px;"></canvas>
+                        <div style="position: relative; height: 250px;">
+                            <canvas id="fleetStatusChart"></canvas>
+                        </div>
                         <div class="mt-4 space-y-2">
                             <div class="flex items-center justify-between text-sm">
                                 <div class="flex items-center">
@@ -137,17 +166,6 @@
                                 <span class="font-bold text-gray-800">@vehiculosDisponibles.Count</span>
                             </div>
                         </div>
-                    </div>
-
-                    <!-- Gráfico Propiedad -->
-                    <div class="lg:col-span-2 bg-white rounded-xl shadow p-6">
-                        <h3 class="text-lg font-bold text-gray-800 mb-4 flex items-center">
-                            <svg class="w-5 h-5 mr-2 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                            </svg>
-                            Distribución por Propiedad
-                        </h3>
-                        <canvas id="ownershipChart" style="max-height: 300px;"></canvas>
                     </div>
                 </div>
 
@@ -254,7 +272,7 @@
                 <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
                     <!-- Disponibles -->
-                    <div class="bg-white rounded-xl shadow">
+                    <div class="bg-white rounded-xl shadow mb-4">
                         <div class="bg-blue-600 px-6 py-4 rounded-t-xl">
                             <h2 class="text-xl font-bold text-white">Vehículos Disponibles (@vehiculosDisponibles.Count)</h2>
                         </div>
@@ -267,7 +285,7 @@
                         }
                         else
                         {
-                            <div class="divide-y divide-gray-200">
+                            <div class="divide-y divide-gray-200 max-h-96 overflow-y-auto">
                                 @foreach (var vehiculo in vehiculosDisponibles.Take(5))
                                 {
                                     <div class="p-4 hover:bg-gray-50">
@@ -281,6 +299,15 @@
                                                 <div class="text-xs text-gray-500">por día</div>
                                             </div>
                                         </div>
+                                    </div>
+                                }
+                                @if (vehiculosDisponibles.Count > 5)
+                                {
+                                    <div class="p-4 bg-gray-50 text-center">
+                                        <button @onclick="@(() => NavigationManager.NavigateTo("/vehicles"))"
+                                                class="text-blue-600 hover:text-blue-800 font-medium text-sm">
+                                            Ver todos (@vehiculosDisponibles.Count vehículos) →
+                                        </button>
                                     </div>
                                 }
                             </div>
@@ -305,7 +332,7 @@
                         }
                         else
                         {
-                            <div class="divide-y divide-gray-200">
+                            <div class="divide-y divide-gray-200 max-h-96 overflow-y-auto">
                                 @foreach (var birthday in dashboardData.TodayBirthdays)
                                 {
                                     <div class="p-4 hover:bg-gray-50">
@@ -336,10 +363,12 @@
     private bool hasModuleAccess = false;
     private bool canView = false;
     private string errorMessage = string.Empty;
+    private bool chartsInitialized = false;
 
     private DashboardDataDto dashboardData = new();
     private List<VehicleInfoDto> vehiculosAlquilados = new();
     private List<VehicleInfoDto> vehiculosDisponibles = new();
+    private List<ActiveRentalDto> alquileresDelMes = new();
 
     protected override async Task OnInitializedAsync()
     {
@@ -353,9 +382,11 @@
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        if (firstRender && !isLoadingData && hasModuleAccess && canView)
+        if (!chartsInitialized && !isLoadingData && hasModuleAccess && canView && GetTotalVehiculos() > 0)
         {
+            await Task.Delay(100);
             await InitializeCharts();
+            chartsInitialized = true;
         }
     }
 
@@ -389,6 +420,14 @@
             {
                 dashboardData = result.Data;
 
+                // Filtrar alquileres del mes actual
+                var inicioMes = new DateTime(DateTime.Now.Year, DateTime.Now.Month, 1);
+                var finMes = inicioMes.AddMonths(1).AddDays(-1);
+
+                alquileresDelMes = dashboardData.ActiveRentals
+                    .Where(r => r.StartDate >= inicioMes && r.StartDate <= finMes)
+                    .ToList();
+
                 var vehiclesResult = await DashboardApiClient.GetVehiclesInfoAsync();
                 if (vehiclesResult.IsSuccess && vehiclesResult.Data != null)
                 {
@@ -404,6 +443,7 @@
         catch (Exception ex)
         {
             errorMessage = $"Error: {ex.Message}";
+            Console.WriteLine($"Error en LoadDashboardData: {ex.Message}");
         }
         finally
         {
@@ -415,6 +455,9 @@
     {
         try
         {
+            Console.WriteLine("[Dashboard] Iniciando creación de gráficos...");
+
+            // Gráfico de Estado de Flota (Dona)
             var fleetData = new
             {
                 labels = new[] { "Alquilados", "Disponibles" },
@@ -428,25 +471,48 @@
             };
             await JSRuntime.InvokeVoidAsync("createDoughnutChart", "fleetStatusChart", fleetData);
 
-            var empresaAlq = vehiculosAlquilados.Count(v => v.Ownership == "Empresa");
-            var socioAlq = vehiculosAlquilados.Count(v => v.Ownership == "Socio");
-            var empresaDis = vehiculosDisponibles.Count(v => v.Ownership == "Empresa");
-            var socioDis = vehiculosDisponibles.Count(v => v.Ownership == "Socio");
+            // Gráfico de Alquileres por Tipo de Vehículo
+            // NOTA: Como VehicleInfoDto no tiene Type, usaremos Make como ejemplo
+            // En producción, necesitarías agregar Type al DTO
+            var tiposVehiculo = alquileresDelMes
+                .GroupBy(r => GetVehicleTypeName(r.VehicleName))
+                .Select(g => new { Tipo = g.Key, Cantidad = g.Count() })
+                .OrderByDescending(x => x.Cantidad)
+                .ToList();
 
-            var ownershipData = new
+            var vehicleTypeData = new
             {
-                labels = new[] { "Empresa", "Socio" },
+                labels = tiposVehiculo.Select(t => t.Tipo).ToArray(),
                 datasets = new[] {
-                    new { label = "Alquilados", data = new[] { empresaAlq, socioAlq }, backgroundColor = "#10b981" },
-                    new { label = "Disponibles", data = new[] { empresaDis, socioDis }, backgroundColor = "#3b82f6" }
+                    new {
+                        label = "Alquileres del Mes",
+                        data = tiposVehiculo.Select(t => t.Cantidad).ToArray(),
+                        backgroundColor = new[] { "#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6", "#ec4899", "#14b8a6" }
+                    }
                 }
             };
-            await JSRuntime.InvokeVoidAsync("createBarChart", "ownershipChart", ownershipData);
+            await JSRuntime.InvokeVoidAsync("createBarChart", "vehicleTypeChart", vehicleTypeData);
+
+            Console.WriteLine("[Dashboard] ✅ Gráficos creados exitosamente");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error gráficos: {ex.Message}");
+            Console.WriteLine($"[Dashboard] ❌ Error al crear gráficos: {ex.Message}");
         }
+    }
+
+    private string GetVehicleTypeName(string vehicleName)
+    {
+        // Lógica simple para extraer tipo del nombre del vehículo
+        // En producción, esto debería venir del Type en el DTO
+        var lower = vehicleName.ToLower();
+        if (lower.Contains("suv")) return "SUV";
+        if (lower.Contains("sedan") || lower.Contains("sedán")) return "Sedán";
+        if (lower.Contains("hatchback")) return "Hatchback";
+        if (lower.Contains("camioneta")) return "Camioneta";
+        if (lower.Contains("van")) return "Van";
+        if (lower.Contains("crossover")) return "Crossover";
+        return "Otros";
     }
 
     private string GetGreeting()
@@ -459,16 +525,21 @@
 
     private int GetTotalVehiculos() => vehiculosAlquilados.Count + vehiculosDisponibles.Count;
 
+    private int GetAlquileresDelMes() => alquileresDelMes.Count;
+
+    private int GetClientesActivosDelMes()
+    {
+        // Clientes únicos que han alquilado en el mes
+        return alquileresDelMes
+            .Select(r => r.CustomerName)
+            .Distinct()
+            .Count();
+    }
+
     private int GetOccupancyRate()
     {
         var total = GetTotalVehiculos();
         return total == 0 ? 0 : (int)Math.Round((double)vehiculosAlquilados.Count / total * 100);
-    }
-
-    private string GetActiveRevenue()
-    {
-        var total = vehiculosAlquilados.Sum(v => v.DailyRate);
-        return total.ToString("C0");
     }
 
     private int GetDaysRemaining(DateTime? endDate)

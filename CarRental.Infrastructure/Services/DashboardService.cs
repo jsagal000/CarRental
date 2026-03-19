@@ -62,13 +62,14 @@ namespace CarRental.Infrastructure.Services
                 Id = v.Id,
                 Make = v.Make,
                 Model = v.Model,
+                Type = v.Type.ToString(),
                 Year = v.Year,
                 LicensePlate = v.LicensePlate,
                 DailyRate = v.DailyRate,
                 State = v.State.ToString(),
                 Ownership = v.Ownership.HasValue ? v.Ownership.Value.ToString() : "Empresa",
                 CustomerName = GetActiveRentalCustomerName(v),
-                EndDate = GetActiveRentalEndDate(v)
+                EndDate = GetActiveRentalEndDate(v)                
             }).ToList();
 
             return vehicleInfoList;
