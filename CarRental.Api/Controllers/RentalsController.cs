@@ -275,6 +275,17 @@ namespace CarRental.Api.Controllers
                 var previousStatus = existingRental.Status;
                 var previousVehicleId = existingRental.VehicleId;
 
+                // ✅ NUEVA LÓGICA: Si el alquiler está VENCIDO y se extiende la fecha fin
+                if (existingRental.Status == Rental.RentalStatus.Vencido && dto.EndDate.Date > DateTime.Today)
+                {
+                    existingRental.Status = Rental.RentalStatus.Activo;
+
+                    _logger.LogInformation(
+                        "Alquiler {RentalId} cambiado de VENCIDO → ACTIVO (fecha extendida de {OldEndDate} a {NewEndDate})",
+                        id, existingRental.EndDate, dto.EndDate
+                    );
+                }
+
                 var oldValues = new
                 {
                     existingRental.CustomerId,
@@ -286,7 +297,7 @@ namespace CarRental.Api.Controllers
                     existingRental.DestinationType,
                     existingRental.DestinationCityName,
                     existingRental.DriverName,
-                    existingRental.Status
+                    Status = previousStatus  // ✅ Usar previousStatus para guardar el estado original
                 };
 
                 existingRental.CustomerId = dto.CustomerId;
@@ -302,7 +313,12 @@ namespace CarRental.Api.Controllers
                 existingRental.DriverLicenseType = dto.DriverLicenseType;
                 existingRental.DriverLicenseExpirationDate = dto.DriverLicenseExpirationDate;
                 existingRental.TotalCost = dto.TotalCost;
-                existingRental.Status = DetermineRentalStatus(dto.StartDate);
+
+                // ✅ Solo actualizar Status si NO fue reactivado manualmente desde Vencido
+                if (existingRental.Status != Rental.RentalStatus.Activo || previousStatus != Rental.RentalStatus.Vencido)
+                {
+                    existingRental.Status = DetermineRentalStatus(dto.StartDate);
+                }
 
                 await _context.SaveChangesAsync();
 
@@ -334,7 +350,10 @@ namespace CarRental.Api.Controllers
                     action: "Edit",
                     entityId: existingRental.Id,
                     entityName: $"Alquiler {dto.DriverName} - Veh ID: {dto.VehicleId}",
-                    description: $"Editó alquiler ID: {existingRental.Id}",
+                    description: $"Editó alquiler ID: {existingRental.Id}" +
+                                (previousStatus == Rental.RentalStatus.Vencido && existingRental.Status == Rental.RentalStatus.Activo
+                                    ? " (Extendido desde Vencido → Activo)"
+                                    : ""),
                     oldValues: oldValues,
                     newValues: newValues,
                     ipAddress: HttpContext.GetClientIpAddress(),
@@ -395,6 +414,7 @@ namespace CarRental.Api.Controllers
                 return StatusCode(500, "Error interno del servidor");
             }
         }
+
 
         [HttpDelete("{id}")]
         [RequirePermission("Rental", "Delete")]
@@ -923,16 +943,20 @@ namespace CarRental.Api.Controllers
                     return NotFound($"Rental with ID {id} not found");
                 }
 
-                // Validar que el alquiler pueda ser cancelado
-                if (rental.Status == Rental.RentalStatus.Completado)
+                // ✅ Validar que el alquiler pueda ser cancelado
+                // NO se puede cancelar si ya está en estado final (Completado o Dañado)
+                if (rental.Status == Rental.RentalStatus.Completado ||
+                    rental.Status == Rental.RentalStatus.Dañado)
                 {
-                    return BadRequest("No se puede cancelar un alquiler completado.");
+                    return BadRequest("No se puede cancelar un alquiler que ya fue completado o marcado como dañado.");
                 }
 
                 if (rental.Status == Rental.RentalStatus.Cancelado)
                 {
                     return BadRequest("El alquiler ya está cancelado.");
                 }
+
+                // ✅ PERMITIR cancelar desde: Reservado, Activo, Vencido
 
                 // Si se solicita calcular los días
                 if (request.CalculateDays)
@@ -959,6 +983,20 @@ namespace CarRental.Api.Controllers
                         if (actualRentalDays <= 0) actualRentalDays = 1;
 
                         decimal newTotalCost = actualRentalDays * rental.DailyRate;
+
+                        // ✅ Si está vencido, agregar recargos
+                        if (rental.Status == Rental.RentalStatus.Vencido && actualReturnDateTimeForCalc > rental.EndDate)
+                        {
+                            TimeSpan overdueDuration = actualReturnDateTimeForCalc - rental.EndDate;
+                            int overdueDays = (int)Math.Ceiling(overdueDuration.TotalHours / 24.0);
+                            if (overdueDays > 0)
+                            {
+                                decimal overdueChargePerDay = rental.DailyRate * 1.5m;
+                                decimal overdueCharges = overdueDays * overdueChargePerDay;
+                                newTotalCost += overdueCharges;
+                            }
+                        }
+
                         rental.TotalCost = newTotalCost;
                     }
 
@@ -1027,6 +1065,5 @@ namespace CarRental.Api.Controllers
         {
             public bool CalculateDays { get; set; }
         }
-
     }
 }

@@ -62,11 +62,10 @@ namespace CarRental.Core.Models
         // Enum para el tipo de documento (¡Con acento en Cédula!)
         public enum DocumentType
         {
-            Cédula, // Corregido a Cédula con acento
+            Cédula,
+            RUC,
             Pasaporte
         }
 
-        // Navigation property for rentals (will be used in the future)
-        // public ICollection<Rental> Rentals { get; set; }
     }
 }

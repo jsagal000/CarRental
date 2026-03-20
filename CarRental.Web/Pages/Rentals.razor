@@ -539,7 +539,8 @@
     private bool CanCancel(Rental rental)
     {
         // Solo puede cancelar si está Activo o Vencido (NO si ya está Finalizado o Cancelado)
-        return rental.Status == Rental.RentalStatus.Activo ||
+        return rental.Status == Rental.RentalStatus.Reservado || 
+               rental.Status == Rental.RentalStatus.Activo ||
                rental.Status == Rental.RentalStatus.Vencido;
     }
 

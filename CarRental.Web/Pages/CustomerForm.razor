@@ -90,7 +90,9 @@ else
                     </div>
                     <div class="form-group">
                         <label for="typeOfDocument" class="block text-sm font-medium text-gray-700 mb-1">Tipo de Documento:</label>
-                        <InputSelect class="w-full p-3 border rounded" @bind-Value="_customer.TypeOfDocument">
+                        <InputSelect class="w-full p-3 border rounded"
+                                     @bind-Value="_customer.TypeOfDocument"
+                                     @bind-Value:after="OnDocumentTypeChanged">
                             @foreach (var docType in Enum.GetValues<Customer.DocumentType>())
                             {
                                 <option value="@docType">@docType.ToString()</option>
@@ -99,9 +101,28 @@ else
                         <ValidationMessage For="@(() => _customer.TypeOfDocument)" class="text-red-500 text-xs mt-1" />
                     </div>
                     <div class="form-group">
-                        <label for="documentNumber" class="block text-sm font-medium text-gray-700 mb-1">Número de Documento:</label>
-                        <InputText class="w-full p-3 border rounded" @bind-Value="_customer.DocumentNumber" />
-                        <ValidationMessage For="@(() => _customer.DocumentNumber)" class="text-red-500 text-xs mt-1" />
+                        <label for="documentNumber" class="block text-sm font-medium text-gray-700 mb-1">
+                            Número de Documento:
+                        </label>
+                        <input type="text"
+                               id="documentNumber"
+                               class="@($"w-full p-3 border rounded {GetDocumentNumberBorderClass()}")"
+                               value="@_customer.DocumentNumber"
+                               @oninput="OnDocumentNumberInput"
+                               placeholder="@GetDocumentNumberPlaceholder()"
+                               style="text-transform: uppercase;" />
+                        <div class="flex justify-between items-center mt-1">
+                            <div class="flex-1">
+                                <ValidationMessage For="@(() => _customer.DocumentNumber)" class="text-red-500 text-xs" />
+                                @if (!string.IsNullOrEmpty(documentNumberErrorMessage))
+                                {
+                                    <span class="text-red-500 text-xs">@documentNumberErrorMessage</span>
+                                }
+                            </div>
+                            <span class="@($"text-xs {GetDocumentNumberMessageClass()}")">
+                                @GetDocumentNumberMessage()
+                            </span>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="dateOfBirth" class="block text-sm font-medium text-gray-700 mb-1">Fecha de Nacimiento:</label>
@@ -114,9 +135,27 @@ else
                         <ValidationMessage For="@(() => _customer.Email)" class="text-red-500 text-xs mt-1" />
                     </div>
                     <div class="form-group">
-                        <label for="phoneNumber" class="block text-sm font-medium text-gray-700 mb-1">Teléfono:</label>
-                        <InputText class="w-full p-3 border rounded" @bind-Value="_customer.PhoneNumber" />
-                        <ValidationMessage For="@(() => _customer.PhoneNumber)" class="text-red-500 text-xs mt-1" />
+                        <label for="phoneNumber" class="block text-sm font-medium text-gray-700 mb-1">
+                            Teléfono:
+                        </label>
+                        <input type="text"
+                               id="phoneNumber"
+                               class="@($"w-full p-3 border rounded {GetPhoneBorderClass()}")"
+                               value="@_customer.PhoneNumber"
+                               @oninput="OnPhoneNumberInput"
+                               placeholder="+593 99 123 4567" />
+                        <div class="flex justify-between items-center mt-1">
+                            <div class="flex-1">
+                                <ValidationMessage For="@(() => _customer.PhoneNumber)" class="text-red-500 text-xs" />
+                                @if (!string.IsNullOrEmpty(phoneNumberErrorMessage))
+                                {
+                                    <span class="text-red-500 text-xs">@phoneNumberErrorMessage</span>
+                                }
+                            </div>
+                            <span class="@($"text-xs {GetPhoneMessageClass()}")">
+                                @GetPhoneMessage()
+                            </span>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="country" class="block text-sm font-medium text-gray-700 mb-1">País:</label>
@@ -163,6 +202,11 @@ else
     private bool hasPermission = false;
 
     private bool _isEditMode => Id.HasValue;
+
+    private string documentNumberErrorMessage = "";
+    private string phoneNumberErrorMessage = "";
+    private System.Threading.Timer? documentErrorTimer;
+    private System.Threading.Timer? phoneErrorTimer;
 
     protected override async Task OnInitializedAsync()
     {
@@ -313,4 +357,256 @@ else
     {
         NavigationManager.NavigateTo("/customers");
     }
+
+    // ============================================================================
+    // MÉTODOS PARA VALIDACIÓN DE NÚMERO DE DOCUMENTO
+    // ============================================================================
+
+    /// Se ejecuta cuando cambia el tipo de documento
+    private void OnDocumentTypeChanged()
+    {
+        // Limpiar mensaje de error
+        documentNumberErrorMessage = "";
+        StateHasChanged();
+    }
+
+    /// Maneja el input del número de documento según el tipo
+    private void OnDocumentNumberInput(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString() ?? "";
+        var cleaned = "";
+        var hasInvalidChars = false;
+
+        if (_customer.TypeOfDocument == Customer.DocumentType.Cédula || _customer.TypeOfDocument == Customer.DocumentType.RUC)
+        {
+            // CÉDULA/RUC: Solo números
+            cleaned = new string(value.Where(c => char.IsDigit(c)).ToArray());
+
+            // Verificar si había caracteres inválidos (letras o símbolos)
+            hasInvalidChars = value.Any(c => !char.IsDigit(c));
+
+            if (hasInvalidChars)
+            {
+                ShowDocumentError("⚠ Cédula o RUC: solo se permiten números");
+            }
+            else
+            {
+                documentNumberErrorMessage = "";
+            }
+        }
+        else if (_customer.TypeOfDocument == Customer.DocumentType.Pasaporte)
+        {
+            // PASAPORTE: Alfanumérico (letras y números), sin caracteres especiales
+            cleaned = new string(value.Where(c => char.IsLetterOrDigit(c)).ToArray()).ToUpper();
+
+            // Verificar si había caracteres especiales
+            hasInvalidChars = value.Any(c => !char.IsLetterOrDigit(c));
+
+            if (hasInvalidChars)
+            {
+                ShowDocumentError("⚠ Pasaporte: no se permiten caracteres especiales");
+            }
+            else
+            {
+                documentNumberErrorMessage = "";
+            }
+        }
+        else
+        {
+            // Otros tipos: Alfanumérico por defecto
+            cleaned = new string(value.Where(c => char.IsLetterOrDigit(c)).ToArray()).ToUpper();
+
+            hasInvalidChars = value.Any(c => !char.IsLetterOrDigit(c));
+
+            if (hasInvalidChars)
+            {
+                ShowDocumentError("⚠ No se permiten caracteres especiales");
+            }
+            else
+            {
+                documentNumberErrorMessage = "";
+            }
+        }
+
+        _customer.DocumentNumber = cleaned;
+        StateHasChanged();
+    }
+
+    /// Muestra mensaje de error temporal para documento
+    private void ShowDocumentError(string message)
+    {
+        documentNumberErrorMessage = message;
+
+        // Cancelar timer anterior si existe
+        documentErrorTimer?.Dispose();
+
+        // Crear nuevo timer para ocultar mensaje después de 3 segundos
+        documentErrorTimer = new System.Threading.Timer(_ =>
+        {
+            documentNumberErrorMessage = "";
+            InvokeAsync(StateHasChanged);
+        }, null, 3000, System.Threading.Timeout.Infinite);
+    }
+
+    /// Obtiene el placeholder según el tipo de documento
+    private string GetDocumentNumberPlaceholder()
+    {
+        return _customer.TypeOfDocument switch
+        {
+            Customer.DocumentType.Cédula => "Ej: 1234567890",
+            Customer.DocumentType.RUC => "Ej: 1234567890001",
+            Customer.DocumentType.Pasaporte => "Ej: AB123456",
+            _ => "Número de documento"
+        };
+    }
+
+    /// Obtiene el mensaje de validación para el número de documento
+    private string GetDocumentNumberMessage()
+    {
+        if (string.IsNullOrEmpty(_customer.DocumentNumber))
+            return "";
+
+        return _customer.TypeOfDocument switch
+        {
+            Customer.DocumentType.Cédula => "✓ Solo números",
+            Customer.DocumentType.RUC => "✓ Solo números",
+            Customer.DocumentType.Pasaporte => "✓ Alfanumérico",
+            _ => "✓"
+        };
+    }
+
+    /// Obtiene la clase CSS para el mensaje de documento
+    private string GetDocumentNumberMessageClass()
+    {
+        if (string.IsNullOrEmpty(_customer.DocumentNumber))
+            return "text-gray-400";
+
+        if (!string.IsNullOrEmpty(documentNumberErrorMessage))
+            return "text-gray-400";
+
+        return "text-green-600 font-semibold";
+    }
+
+    /// Obtiene la clase CSS para el borde del input de documento
+    private string GetDocumentNumberBorderClass()
+    {
+        if (!string.IsNullOrEmpty(documentNumberErrorMessage))
+            return "border-red-500 focus:border-red-600";
+
+        if (string.IsNullOrEmpty(_customer.DocumentNumber))
+            return "border-gray-300 focus:border-blue-500";
+
+        return "border-green-500 focus:border-green-600";
+    }
+
+    // ============================================================================
+    // MÉTODOS PARA VALIDACIÓN DE TELÉFONO
+    // ============================================================================
+
+
+    /// Maneja el input del teléfono
+    /// Solo permite números y el signo +
+    private void OnPhoneNumberInput(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString() ?? "";
+
+        // Verificar si hay caracteres inválidos (ni números ni +)
+        var hasInvalidChars = value.Any(c => !char.IsDigit(c) && c != '+');
+
+        // Permitir solo números y el signo +
+        var cleaned = new string(value.Where(c => char.IsDigit(c) || c == '+').ToArray());
+
+        // El + solo puede estar al inicio
+        if (cleaned.Contains('+'))
+        {
+            // Remover todos los +
+            var withoutPlus = cleaned.Replace("+", "");
+
+            // Agregar + solo al inicio si el valor original empezaba con +
+            if (value.TrimStart().StartsWith("+"))
+            {
+                cleaned = "+" + withoutPlus;
+            }
+            else
+            {
+                cleaned = withoutPlus;
+            }
+        }
+
+        // Mostrar mensaje de error si había caracteres inválidos
+        if (hasInvalidChars)
+        {
+            ShowPhoneError("⚠ Solo se permiten números y el signo +");
+        }
+        else
+        {
+            phoneNumberErrorMessage = "";
+        }
+
+        _customer.PhoneNumber = cleaned;
+        StateHasChanged();
+    }
+
+    /// Muestra mensaje de error temporal para teléfono
+    private void ShowPhoneError(string message)
+    {
+        phoneNumberErrorMessage = message;
+
+        // Cancelar timer anterior si existe
+        phoneErrorTimer?.Dispose();
+
+        // Crear nuevo timer para ocultar mensaje después de 3 segundos
+        phoneErrorTimer = new System.Threading.Timer(_ =>
+        {
+            phoneNumberErrorMessage = "";
+            InvokeAsync(StateHasChanged);
+        }, null, 3000, System.Threading.Timeout.Infinite);
+    }
+
+    /// Obtiene el mensaje de validación para el teléfono
+    private string GetPhoneMessage()
+    {
+        if (string.IsNullOrEmpty(_customer.PhoneNumber))
+            return "";
+
+        if (_customer.PhoneNumber.StartsWith("+"))
+            return "✓ Internacional";
+        else
+            return "✓ Nacional";
+    }
+
+    /// Obtiene la clase CSS para el mensaje de teléfono
+    private string GetPhoneMessageClass()
+    {
+        if (string.IsNullOrEmpty(_customer.PhoneNumber))
+            return "text-gray-400";
+
+        if (!string.IsNullOrEmpty(phoneNumberErrorMessage))
+            return "text-gray-400";
+
+        return "text-green-600 font-semibold";
+    }
+
+    /// Obtiene la clase CSS para el borde del input de teléfono
+    private string GetPhoneBorderClass()
+    {
+        if (!string.IsNullOrEmpty(phoneNumberErrorMessage))
+            return "border-red-500 focus:border-red-600";
+
+        if (string.IsNullOrEmpty(_customer.PhoneNumber))
+            return "border-gray-300 focus:border-blue-500";
+
+        return "border-green-500 focus:border-green-600";
+    }
+
+    // ============================================================================
+    // DISPOSE (Agregar o modificar el método Dispose existente)
+    // ============================================================================
+
+    public void Dispose()
+    {
+        documentErrorTimer?.Dispose();
+        phoneErrorTimer?.Dispose();
+    }
+
 }

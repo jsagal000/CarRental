@@ -96,6 +96,9 @@ namespace CarRental.Infrastructure.Services
             }
         }
 
+        // ============================================================================
+        // ✅ MÉTODO CORREGIDO: FinalizeRentalAsync
+        // ============================================================================
         public async Task FinalizeRentalAsync(int rentalId, DateTime actualReturnDate)
         {
             _logger.LogInformation("Iniciando la finalización del alquiler con ID {RentalId} en la fecha de devolución real {ActualReturnDate}.", rentalId, actualReturnDate);
@@ -108,28 +111,30 @@ namespace CarRental.Infrastructure.Services
                     throw new ArgumentException("Renta no encontrada.");
                 }
 
-                if (rental.Status == Rental.RentalStatus.Completado || rental.Status == Rental.RentalStatus.Cancelado || rental.Status == Rental.RentalStatus.Dañado)
+                // ✅ VALIDAR: Solo se puede finalizar desde Activo o Vencido
+                if (rental.Status != Rental.RentalStatus.Activo && rental.Status != Rental.RentalStatus.Vencido)
                 {
-                    _logger.LogWarning("Alquiler con ID {RentalId} ya está en un estado final ({RentalStatus}).", rentalId, rental.Status);
-                    throw new InvalidOperationException("La renta ya ha sido finalizada o cancelada.");
+                    _logger.LogWarning("Alquiler con ID {RentalId} no puede finalizarse desde estado {RentalStatus}.", rentalId, rental.Status);
+                    throw new InvalidOperationException($"El alquiler no puede finalizarse desde estado {rental.Status}. Solo se puede finalizar desde Activo o Vencido.");
                 }
 
                 rental.ActualReturnDate = actualReturnDate;
-                rental.Status = Rental.RentalStatus.Completado;
 
+                // Calcular fecha/hora de devolución para comparación
                 DateTime actualReturnDateTimeForCalc = actualReturnDate.Date.Add(rental.StartDate.TimeOfDay);
-
                 if (actualReturnDateTimeForCalc < rental.StartDate)
                 {
                     actualReturnDateTimeForCalc = rental.StartDate.AddDays(1);
                 }
 
+                // Calcular días reales de alquiler
                 TimeSpan actualDuration = actualReturnDateTimeForCalc - rental.StartDate;
                 int actualRentalDays = (int)Math.Ceiling(actualDuration.TotalHours / 24.0);
                 if (actualRentalDays <= 0) actualRentalDays = 1;
 
                 decimal newTotalCost = actualRentalDays * rental.DailyRate;
 
+                // ✅ CALCULAR RECARGOS SI DEVUELVE DESPUÉS DE LA FECHA FIN
                 if (actualReturnDateTimeForCalc > rental.EndDate)
                 {
                     TimeSpan overdueDuration = actualReturnDateTimeForCalc - rental.EndDate;
@@ -139,25 +144,32 @@ namespace CarRental.Infrastructure.Services
                     decimal overdueChargePerDay = rental.DailyRate * 1.5m;
                     rental.OverdueCharges = overdueDays * overdueChargePerDay;
                     newTotalCost += rental.OverdueCharges;
-                    rental.Status = Rental.RentalStatus.Vencido;
-                    _logger.LogInformation("Alquiler con ID {RentalId} con retraso de {OverdueDays} días. Cargos por retraso: {OverdueCharges}.", rentalId, overdueDays, rental.OverdueCharges);
+
+                    _logger.LogInformation("Alquiler con ID {RentalId} finalizado con {OverdueDays} días de retraso. Cargos adicionales: {OverdueCharges}.",
+                        rentalId, overdueDays, rental.OverdueCharges);
                 }
                 else
                 {
                     rental.OverdueCharges = 0m;
+                    _logger.LogInformation("Alquiler con ID {RentalId} finalizado a tiempo (sin recargos).", rentalId);
                 }
 
                 rental.TotalCost = newTotalCost;
 
-                await _rentalRepository.UpdateAsync(rental);
-                _logger.LogInformation("Alquiler con ID {RentalId} finalizado exitosamente. Nuevo Costo Total: {TotalCost}", rentalId, rental.TotalCost);
+                // ✅ SIEMPRE FINALIZAR COMO COMPLETADO (independiente de si hubo retraso o venía de Vencido)
+                rental.Status = Rental.RentalStatus.Completado;
 
+                await _rentalRepository.UpdateAsync(rental);
+                _logger.LogInformation("Alquiler con ID {RentalId} finalizado exitosamente. Estado: COMPLETADO, Costo Total: {TotalCost}",
+                    rentalId, rental.TotalCost);
+
+                // ✅ SIEMPRE cambiar vehículo a Disponible al finalizar
                 var vehicle = await _vehicleRepository.GetByIdAsync(rental.VehicleId);
                 if (vehicle != null)
                 {
                     vehicle.State = Vehicle.VehicleState.Disponible;
                     await _vehicleRepository.UpdateAsync(vehicle);
-                    _logger.LogInformation("Estado del vehículo con ID {VehicleId} actualizado a {VehicleState} después de la finalización del alquiler.", vehicle.Id, Vehicle.VehicleState.Disponible);
+                    _logger.LogInformation("Estado del vehículo con ID {VehicleId} actualizado a DISPONIBLE después de finalizar alquiler.", vehicle.Id);
                 }
             }
             catch (Exception ex)

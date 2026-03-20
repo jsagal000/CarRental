@@ -99,9 +99,21 @@ else
                         <ValidationMessage For="@(() => _vehicle.Year)" class="text-red-500 text-xs mt-1" />
                     </div>
                     <div class="form-group">
-                        <label for="vin" class="block text-sm font-medium text-gray-700 mb-1">VIN:</label>
-                        <InputText class="w-full p-3 border rounded" @bind-Value="FormattedVin" />
-                        <ValidationMessage For="@(() => _vehicle.Vin)" class="text-red-500 text-xs mt-1" />
+                        <label for="vin" class="block text-sm font-medium text-gray-700 mb-1">
+                            VIN (17 caracteres):
+                        </label>
+                        <input type="text"
+                               id="vin"
+                                   class="@($"w-full p-3 border rounded {GetVinBorderClass()}")"
+                                   value="@_vehicle.Vin"
+                                   @oninput="OnVinInput"
+                                   maxlength="17" />
+                        <div class="flex justify-between items-center mt-1">
+                            <ValidationMessage For="@(() => _vehicle.Vin)" class="text-red-500 text-xs" />
+                            <span class="@($"text-xs font-mono {GetVinCounterClass()}")">
+                                @GetVinLength() / 17
+                            </span>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="color" class="block text-sm font-medium text-gray-700 mb-1">Color:</label>
@@ -109,9 +121,23 @@ else
                         <ValidationMessage For="@(() => _vehicle.Color)" class="text-red-500 text-xs mt-1" />
                     </div>
                     <div class="form-group">
-                        <label for="licensePlate" class="block text-sm font-medium text-gray-700 mb-1">Matrícula:</label>
-                        <InputText class="w-full p-3 border rounded" @bind-Value="FormattedLicensePlate" />
-                        <ValidationMessage For="@(() => _vehicle.LicensePlate)" class="text-red-500 text-xs mt-1" />
+                        <label for="licensePlate" class="block text-sm font-medium text-gray-700 mb-1">
+                            Matrícula (AAA1234):
+                        </label>
+                        <input type="text"
+                               id="licensePlate"
+                               class="@($"w-full p-3 border rounded {GetLicensePlateBorderClass()}")"
+                               value="@_vehicle.LicensePlate"
+                               @oninput="OnLicensePlateInput"
+                               maxlength="7"
+                               placeholder="ABC1234"
+                               style="text-transform: uppercase;" />
+                        <div class="flex justify-between items-center mt-1">
+                            <ValidationMessage For="@(() => _vehicle.LicensePlate)" class="text-red-500 text-xs" />
+                            <span class="@($"text-xs {GetLicensePlateMessageClass()}")">
+                                @GetLicensePlateMessage()
+                            </span>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label for="dailyRate" class="block text-sm font-medium text-gray-700 mb-1">Tarifa Diaria:</label>
@@ -334,13 +360,23 @@ else
     private string FormattedVin
     {
         get => _vehicle.Vin;
-        set => _vehicle.Vin = value?.ToUpper();
+        set
+        {
+            var cleaned = value?.ToUpper().Trim() ?? "";
+            if (cleaned.Length > 17) cleaned = cleaned.Substring(0, 17);
+            _vehicle.Vin = cleaned;
+        }
     }
 
     private string FormattedLicensePlate
     {
         get => _vehicle.LicensePlate;
-        set => _vehicle.LicensePlate = value?.ToUpper();
+        set
+        {
+            var cleaned = value?.ToUpper().Trim() ?? "";
+            if (cleaned.Length > 6) cleaned = cleaned.Substring(0, 6);
+            _vehicle.LicensePlate = cleaned;
+        }
     }
 
     private async Task OnOwnershipTypeChanged(ChangeEventArgs e)
@@ -486,4 +522,156 @@ else
     {
         NavigationManager.NavigateTo("/vehicles");
     }
+
+    private void OnVinInput(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString() ?? "";
+        var cleaned = value.ToUpper().Trim();
+        if (cleaned.Length > 17) cleaned = cleaned.Substring(0, 17);
+        _vehicle.Vin = cleaned;
+        StateHasChanged();
+    }
+
+    private int GetVinLength()
+    {
+        return string.IsNullOrEmpty(_vehicle.Vin) ? 0 : _vehicle.Vin.Length;
+    }
+
+    private string GetVinCounterClass()
+    {
+        var length = GetVinLength();
+        if (length == 0) return "text-gray-400";
+        else if (length < 17) return "text-orange-500 font-semibold";
+        else return "text-green-600 font-semibold";
+    }
+
+    private string GetVinBorderClass()
+    {
+        var length = GetVinLength();
+        if (length == 0) return "border-gray-300 focus:border-blue-500";
+        else if (length < 17) return "border-orange-400 focus:border-orange-500";
+        else return "border-green-500 focus:border-green-600";
+    }
+
+    private void OnLicensePlateInput(ChangeEventArgs e)
+    {
+        var value = e.Value?.ToString() ?? "";
+        var cleaned = value.ToUpper().Trim();
+        if (cleaned.Length > 7) cleaned = cleaned.Substring(0, 7);
+        _vehicle.LicensePlate = cleaned;
+        StateHasChanged();
+    }
+
+    private bool IsValidLicensePlateFormat()
+    {
+        if (string.IsNullOrEmpty(_vehicle.LicensePlate))
+            return false;
+
+        var cleaned = _vehicle.LicensePlate.Trim();
+
+        // Debe tener exactamente 7 caracteres
+        if (cleaned.Length != 7)
+            return false;
+
+        // Primeros 3 deben ser letras
+        for (int i = 0; i < 3; i++)
+        {
+            if (!char.IsLetter(cleaned[i]))
+                return false;
+        }
+
+        // Últimos 3 deben ser números
+        for (int i = 3; i < 7; i++)
+        {
+            if (!char.IsDigit(cleaned[i]))
+                return false;
+        }
+
+        return true;
+    }
+
+    /// Obtiene el mensaje de validación para la placa
+
+    private string GetLicensePlateMessage()
+    {
+        if (string.IsNullOrEmpty(_vehicle.LicensePlate))
+            return "Formato: AAA1234";
+
+        var length = _vehicle.LicensePlate.Length;
+
+        if (length < 7)
+            return $"{length}/7 caracteres";
+
+        if (IsValidLicensePlateFormat())
+            return "✓ Formato válido";
+
+        // Validar qué parte está mal
+        if (length >= 3)
+        {
+            bool lettersOk = true;
+            for (int i = 0; i < 3; i++)
+            {
+                if (!char.IsLetter(_vehicle.LicensePlate[i]))
+                {
+                    lettersOk = false;
+                    break;
+                }
+            }
+
+            if (!lettersOk)
+                return "⚠ Primeros 3 deben ser letras";
+        }
+
+        if (length == 7)
+        {
+            bool numbersOk = true;
+            for (int i = 3; i < 7; i++)
+            {
+                if (!char.IsDigit(_vehicle.LicensePlate[i]))
+                {
+                    numbersOk = false;
+                    break;
+                }
+            }
+
+            if (!numbersOk)
+                return "⚠ Últimos 4 deben ser números";
+        }
+
+        return "Formato: AAA1234";
+    }
+
+    /// Obtiene la clase CSS para el mensaje según el estado
+
+    private string GetLicensePlateMessageClass()
+    {
+        if (string.IsNullOrEmpty(_vehicle.LicensePlate))
+            return "text-gray-400";
+
+        if (IsValidLicensePlateFormat())
+            return "text-green-600 font-semibold";
+
+        if (_vehicle.LicensePlate.Length < 7)
+            return "text-gray-500";
+
+        return "text-red-500 font-semibold";
+    }
+
+    /// Obtiene la clase CSS para el borde del input según el estado
+
+    private string GetLicensePlateBorderClass()
+    {
+        if (string.IsNullOrEmpty(_vehicle.LicensePlate))
+            return "border-gray-300 focus:border-blue-500";
+
+        if (IsValidLicensePlateFormat())
+            return "border-green-500 focus:border-green-600";
+
+        if (_vehicle.LicensePlate.Length < 7)
+            return "border-blue-400 focus:border-blue-500";
+
+        return "border-red-500 focus:border-red-600";
+    }
+
+
 }

@@ -371,7 +371,7 @@ else
             vehicles = vehiclesResult?.Data ?? new List<Vehicle>();
 
             // FILTRAR VEHÍCULOS: Solo mostrar los que NO están en estado "Alquilado"
-            vehiculosDisponibles = vehicles.Where(v => v.State != Vehicle.VehicleState.Alquilado).ToList();
+            vehiculosDisponibles = vehicles.Where(v => v.State == Vehicle.VehicleState.Disponible).ToList();
 
             if (_isEditMode)
             {

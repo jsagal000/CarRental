@@ -24,8 +24,8 @@ namespace CarRental.Core.Models
         [Range(1900, 2100, ErrorMessage = "El año debe estar entre 1900 y 2100.")]
         public int Year { get; set; }
 
-        [Required(ErrorMessage = "La matrícula es obligatoria.")]
-        [StringLength(20, ErrorMessage = "La matrícula no puede exceder los 20 caracteres.")]
+        [Required(ErrorMessage = "La matrícula/placa es obligatoria.")]
+        [StringLength(7, ErrorMessage = "La matrícula/placa no puede exceder los 6 caracteres.")]
         public string LicensePlate { get; set; }
 
         [Required(ErrorMessage = "La tarifa diaria es obligatoria.")]
