@@ -133,7 +133,7 @@
                                 <tr class="border-t border-gray-100 hover:bg-gray-50">
                                     <td class="px-3 py-2 text-gray-800">@partner.FirstName</td>
                                     <td class="px-3 py-2 text-gray-800">@partner.LastName</td>
-                                    <td class="px-3 py-2 text-gray-800">@partner.Cedula</td>
+                                    <td class="px-3 py-2 text-gray-800">@partner.DocumentNumber</td>
                                     <td class="px-3 py-2 text-gray-800">@partner.PhoneNumber</td>
                                     <td class="px-3 py-2 text-gray-800">@partner.Bank</td>
                                     <td class="px-3 py-2 text-gray-800">@partner.TypeOfAccount.ToString()</td>
@@ -295,7 +295,7 @@
             filtered = filtered.Where(p =>
                 (p.FirstName != null && p.FirstName.ToLower().Contains(search)) ||
                 (p.LastName != null && p.LastName.ToLower().Contains(search)) ||
-                (p.Cedula != null && p.Cedula.ToLower().Contains(search))
+                (p.DocumentNumber != null && p.DocumentNumber.ToLower().Contains(search))
             );
         }
 
@@ -354,7 +354,7 @@
         // Obtener información del socio para mostrar en el modal
         var partner = allPartners.FirstOrDefault(p => p.Id == partnerId);
         var partnerInfo = partner != null
-            ? $"al socio {partner.FirstName} {partner.LastName} ({partner.Cedula})"
+            ? $"al socio {partner.FirstName} {partner.LastName} ({partner.DocumentNumber})"
             : "este socio";
 
         // Mostrar modal de confirmación

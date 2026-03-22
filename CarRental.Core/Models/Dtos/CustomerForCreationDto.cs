@@ -13,7 +13,6 @@ namespace CarRental.Core.Models.Dtos
         [StringLength(100, ErrorMessage = "El apellido no puede exceder los 100 caracteres.")]
         public string LastName { get; set; }
 
-        [Required(ErrorMessage = "La dirección de correo electrónico es obligatoria.")]
         [EmailAddress(ErrorMessage = "El formato del correo electrónico no es válido.")]
         [StringLength(150, ErrorMessage = "El correo electrónico no puede exceder los 150 caracteres.")]
         public string Email { get; set; }

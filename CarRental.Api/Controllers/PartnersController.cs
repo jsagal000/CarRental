@@ -138,7 +138,8 @@ namespace CarRental.Api.Controllers
                 {
                     FirstName = dto.FirstName,
                     LastName = dto.LastName,
-                    Cedula = dto.Cedula,
+                    TypeOfDocument = dto.TypeOfDocument,
+                    DocumentNumber = dto.DocumentNumber,
                     Email = dto.Email,
                     PhoneNumber = dto.PhoneNumber,
                     Country = dto.Country,
@@ -161,13 +162,14 @@ namespace CarRental.Api.Controllers
                     action: "Create",
                     entityId: partner.Id,
                     entityName: $"{partner.FirstName} {partner.LastName}",
-                    description: $"Creó nuevo socio: {partner.FirstName} {partner.LastName} (Cédula: {partner.Cedula})",
+                    description: $"Creó nuevo socio: {partner.FirstName} {partner.LastName} (Cédula: {partner.DocumentNumber})",
                     newValues: new
                     {
                         partner.Id,
                         partner.FirstName,
                         partner.LastName,
-                        partner.Cedula,
+                        partner.TypeOfDocument,
+                        partner.DocumentNumber,
                         partner.Email,
                         partner.PhoneNumber,
                         partner.Country,
@@ -250,7 +252,8 @@ namespace CarRental.Api.Controllers
                 {
                     existing.FirstName,
                     existing.LastName,
-                    existing.Cedula,
+                    existing.TypeOfDocument,
+                    existing.DocumentNumber,
                     existing.Email,
                     existing.PhoneNumber,
                     existing.Country,
@@ -265,7 +268,8 @@ namespace CarRental.Api.Controllers
                 // Actualizar campos
                 existing.FirstName = partner.FirstName;
                 existing.LastName = partner.LastName;
-                existing.Cedula = partner.Cedula;
+                existing.TypeOfDocument = partner.TypeOfDocument;
+                existing.DocumentNumber = partner.DocumentNumber;
                 existing.Email = partner.Email;
                 existing.PhoneNumber = partner.PhoneNumber;
                 existing.Country = partner.Country;
@@ -282,7 +286,8 @@ namespace CarRental.Api.Controllers
                 {
                     existing.FirstName,
                     existing.LastName,
-                    existing.Cedula,
+                    existing.TypeOfDocument,
+                    existing.DocumentNumber,
                     existing.Email,
                     existing.PhoneNumber,
                     existing.Country,
@@ -360,7 +365,8 @@ namespace CarRental.Api.Controllers
                     partner.Id,
                     partner.FirstName,
                     partner.LastName,
-                    partner.Cedula,
+                    partner.TypeOfDocument,
+                    partner.DocumentNumber,
                     partner.Email,
                     partner.PhoneNumber,
                     partner.Country,
@@ -383,7 +389,7 @@ namespace CarRental.Api.Controllers
                     action: "Delete",
                     entityId: partner.Id,
                     entityName: $"{partner.FirstName} {partner.LastName}",
-                    description: $"Eliminó socio: {partner.FirstName} {partner.LastName} (Cédula: {partner.Cedula})",
+                    description: $"Eliminó socio: {partner.FirstName} {partner.LastName} (Cédula: {partner.DocumentNumber})",
                     oldValues: deletedPartnerData,
                     ipAddress: HttpContext.GetClientIpAddress(),
                     userAgent: HttpContext.GetUserAgent()

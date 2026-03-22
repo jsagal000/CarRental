@@ -2,6 +2,7 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using static CarRental.Core.Models.Customer;
 
 
 namespace CarRental.Core.Models
@@ -18,11 +19,14 @@ namespace CarRental.Core.Models
         [StringLength(100, ErrorMessage = "El apellido no puede exceder los 100 caracteres.")]
         public string LastName { get; set; }
 
-        [Required(ErrorMessage = "La cédula es obligatoria.")]
-        [StringLength(20, ErrorMessage = "La cédula no puede exceder los 20 caracteres.")]
-        public string Cedula { get; set; }
+        // Propiedades de documento
+        [Required(ErrorMessage = "El tipo de documento es obligatorio.")]
+        public DocumentType TypeOfDocument { get; set; }
 
-        [Required(ErrorMessage = "La dirección de correo electrónico es obligatoria.")]
+        [Required(ErrorMessage = "El número de documento es obligatorio.")]
+        [StringLength(50, ErrorMessage = "El número de documento no puede exceder los 50 caracteres.")]
+        public string DocumentNumber { get; set; }
+
         [EmailAddress(ErrorMessage = "El formato del correo electrónico no es válido.")]
         [StringLength(150, ErrorMessage = "El correo electrónico no puede exceder los 150 caracteres.")]
         public string Email { get; set; }
@@ -69,7 +73,12 @@ namespace CarRental.Core.Models
             Corriente
         }
 
-        // Navigation property for future relationships
-        // public ICollection<SomeRelatedEntity> RelatedEntities { get; set; }
+        public enum DocumentType
+        {
+            Cédula,
+            RUC,
+            Pasaporte
+        }
+
     }
 }

@@ -194,7 +194,7 @@ else
                                     <option value="">-- Seleccionar Socio --</option>
                                     @foreach (var partner in _partners)
                                     {
-                                        <option value="@partner.Id">@($"{partner.FirstName} {partner.LastName} - {partner.Cedula}")</option>
+                                        <option value="@partner.Id">@($"{partner.FirstName} {partner.LastName} - {partner.DocumentNumber}")</option>
                                     }
                                 </InputSelect>
                             }

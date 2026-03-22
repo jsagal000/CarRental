@@ -116,7 +116,17 @@ else
                                 <ValidationMessage For="@(() => _customer.DocumentNumber)" class="text-red-500 text-xs" />
                                 @if (!string.IsNullOrEmpty(documentNumberErrorMessage))
                                 {
-                                    <span class="text-red-500 text-xs">@documentNumberErrorMessage</span>
+                                    <span class="text-red-500 text-xs block">@documentNumberErrorMessage</span>
+                                }
+                                @if (!string.IsNullOrEmpty(duplicateCustomerMessage))
+                                {
+                                    <span class="text-orange-600 text-xs font-semibold block mt-1">@duplicateCustomerMessage</span>
+                                }
+                                @if (isCheckingDuplicate)
+                                {
+                                    <span class="text-blue-500 text-xs block mt-1">
+                                        <span class="inline-block animate-spin mr-1">⚙️</span> Verificando...
+                                    </span>
                                 }
                             </div>
                             <span class="@($"text-xs {GetDocumentNumberMessageClass()}")">
@@ -207,6 +217,9 @@ else
     private string phoneNumberErrorMessage = "";
     private System.Threading.Timer? documentErrorTimer;
     private System.Threading.Timer? phoneErrorTimer;
+    // Variables para validación de cliente duplicado
+    private string duplicateCustomerMessage = "";
+    private bool isCheckingDuplicate = false;
 
     protected override async Task OnInitializedAsync()
     {
@@ -303,6 +316,13 @@ else
 
     private async Task HandleSubmit()
     {
+        // ✅ VALIDAR DUPLICADO ANTES DE GUARDAR
+        if (!string.IsNullOrEmpty(duplicateCustomerMessage))
+        {
+            ToastService.ShowError("No se puede guardar: Ya existe un cliente con este número de documento.");
+            return;
+        }
+
         if (_isEditMode)
         {
             _updateResponse = await CustomerApiClient.UpdateCustomerAsync(_customer);
@@ -318,6 +338,15 @@ else
         }
         else
         {
+            // ✅ VERIFICAR UNA ÚLTIMA VEZ ANTES DE CREAR
+            await CheckDuplicateCustomer();
+
+            if (!string.IsNullOrEmpty(duplicateCustomerMessage))
+            {
+                ToastService.ShowError("No se puede crear: Ya existe un cliente con este número de documento.");
+                return;
+            }
+
             var dto = new CustomerForCreationDto
             {
                 FirstName = _customer.FirstName,
@@ -370,24 +399,63 @@ else
         StateHasChanged();
     }
 
+    /// Verifica si ya existe un cliente con el mismo número de documento
+    private async Task CheckDuplicateCustomer()
+    {
+        duplicateCustomerMessage = "";
+
+        if (string.IsNullOrEmpty(_customer.DocumentNumber))
+        {
+            return;
+        }
+
+        try
+        {
+            isCheckingDuplicate = true;
+            StateHasChanged();
+
+            var customersResult = await CustomerApiClient.GetAllCustomersAsync();
+
+            if (customersResult.IsSuccess && customersResult.Data != null)
+            {
+                var existingCustomer = customersResult.Data.FirstOrDefault(c =>
+                    c.DocumentNumber == _customer.DocumentNumber &&
+                    (_isEditMode ? c.Id != _customer.Id : true)
+                );
+
+                if (existingCustomer != null)
+                {
+                    duplicateCustomerMessage = $"⚠️ Ya existe un cliente registrado con el documento {_customer.DocumentNumber}: {existingCustomer.FirstName} {existingCustomer.LastName}";
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al verificar cliente duplicado: {ex.Message}");
+        }
+        finally
+        {
+            isCheckingDuplicate = false;
+            StateHasChanged();
+        }
+    }
+
     /// Maneja el input del número de documento según el tipo
-    private void OnDocumentNumberInput(ChangeEventArgs e)
+    private async void OnDocumentNumberInput(ChangeEventArgs e)
     {
         var value = e.Value?.ToString() ?? "";
         var cleaned = "";
         var hasInvalidChars = false;
 
-        if (_customer.TypeOfDocument == Customer.DocumentType.Cédula || _customer.TypeOfDocument == Customer.DocumentType.RUC)
+        if (_customer.TypeOfDocument == Customer.DocumentType.Cédula ||
+            _customer.TypeOfDocument == Customer.DocumentType.RUC)
         {
-            // CÉDULA/RUC: Solo números
             cleaned = new string(value.Where(c => char.IsDigit(c)).ToArray());
-
-            // Verificar si había caracteres inválidos (letras o símbolos)
             hasInvalidChars = value.Any(c => !char.IsDigit(c));
 
             if (hasInvalidChars)
             {
-                ShowDocumentError("⚠ Cédula o RUC: solo se permiten números");
+                ShowDocumentError("⚠ Cédula/RUC: solo se permiten números");
             }
             else
             {
@@ -396,10 +464,7 @@ else
         }
         else if (_customer.TypeOfDocument == Customer.DocumentType.Pasaporte)
         {
-            // PASAPORTE: Alfanumérico (letras y números), sin caracteres especiales
             cleaned = new string(value.Where(c => char.IsLetterOrDigit(c)).ToArray()).ToUpper();
-
-            // Verificar si había caracteres especiales
             hasInvalidChars = value.Any(c => !char.IsLetterOrDigit(c));
 
             if (hasInvalidChars)
@@ -413,9 +478,7 @@ else
         }
         else
         {
-            // Otros tipos: Alfanumérico por defecto
             cleaned = new string(value.Where(c => char.IsLetterOrDigit(c)).ToArray()).ToUpper();
-
             hasInvalidChars = value.Any(c => !char.IsLetterOrDigit(c));
 
             if (hasInvalidChars)
@@ -430,6 +493,16 @@ else
 
         _customer.DocumentNumber = cleaned;
         StateHasChanged();
+
+        // ✅ VERIFICAR DUPLICADO después de filtrar
+        if (!string.IsNullOrEmpty(cleaned) && cleaned.Length >= 5)
+        {
+            await CheckDuplicateCustomer();
+        }
+        else
+        {
+            duplicateCustomerMessage = "";
+        }
     }
 
     /// Muestra mensaje de error temporal para documento
@@ -492,6 +565,9 @@ else
     {
         if (!string.IsNullOrEmpty(documentNumberErrorMessage))
             return "border-red-500 focus:border-red-600";
+
+        if (!string.IsNullOrEmpty(duplicateCustomerMessage))
+            return "border-orange-500 focus:border-orange-600";
 
         if (string.IsNullOrEmpty(_customer.DocumentNumber))
             return "border-gray-300 focus:border-blue-500";

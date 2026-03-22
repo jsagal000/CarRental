@@ -14,11 +14,13 @@ namespace CarRental.Core.Models.Dtos
         [StringLength(100, ErrorMessage = "El apellido no puede exceder los 100 caracteres.")]
         public string LastName { get; set; }
 
-        [Required(ErrorMessage = "La cédula es obligatoria.")]
-        [StringLength(20, ErrorMessage = "La cédula no puede exceder los 20 caracteres.")]
-        public string Cedula { get; set; }
+        [Required(ErrorMessage = "El tipo de documento es obligatorio.")]
+        public Partner.DocumentType TypeOfDocument { get; set; }
 
-        [Required(ErrorMessage = "La dirección de correo electrónico es obligatoria.")]
+        [Required(ErrorMessage = "El número de documento es obligatorio.")]
+        [StringLength(50, ErrorMessage = "El número de documento no puede exceder los 50 caracteres.")]
+        public string DocumentNumber { get; set; }
+
         [EmailAddress(ErrorMessage = "El formato del correo electrónico no es válido.")]
         [StringLength(150, ErrorMessage = "El correo electrónico no puede exceder los 150 caracteres.")]
         public string Email { get; set; }

@@ -15,7 +15,6 @@ namespace CarRental.Core.Models
         [StringLength(100, ErrorMessage = "El apellido no puede exceder los 100 caracteres.")] // Max length for last name
         public string LastName { get; set; }
 
-        [Required(ErrorMessage = "La dirección de correo electrónico es obligatoria.")] // Email is required
         [EmailAddress(ErrorMessage = "El formato del correo electrónico no es válido.")] // Email format validation
         [StringLength(150, ErrorMessage = "El correo electrónico no puede exceder los 150 caracteres.")] // Max length for email
         public string Email { get; set; }
