@@ -1,6 +1,7 @@
 ﻿@using CarRental.Core.Models
 @using CarRental.Web.Services
 @using Blazored.Toast.Services
+@inject CarRental.Web.Services.ModalService ModalService
 @using CarRental.Core.Models.Dtos
 @inject IVehicleSubResourceApiClient<Maintenance, MaintenanceForCreationDto> ApiClient
 @inject IToastService ToastService
@@ -85,7 +86,14 @@
 
     private async Task ConfirmDelete(int maintenanceId)
     {
-        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "¿Estás seguro de que quieres eliminar este mantenimiento?");
+        // Obtener el mantenimiento para mostrar su descripción
+        var maintenance = _maintenances.FirstOrDefault(m => m.Id == maintenanceId);
+        var itemName = maintenance != null
+            ? $"el mantenimiento del {maintenance.Date:dd/MM/yyyy}"
+            : "este mantenimiento";
+
+        var confirmed = await ModalService.ConfirmDeleteAsync(itemName);
+
         if (confirmed)
         {
             var result = await ApiClient.DeleteAsync(maintenanceId);

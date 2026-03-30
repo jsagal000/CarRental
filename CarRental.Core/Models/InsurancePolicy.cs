@@ -51,5 +51,52 @@ namespace CarRental.Core.Models
 
         [Required(ErrorMessage = "La fecha de fin es obligatoria.")]
         public DateTime EndDate { get; set; } = DateTime.Now.AddYears(1);
+
+        // ============ CAMPOS NUEVOS - CRÍTICOS ============
+
+        [Required(ErrorMessage = "El deducible es obligatorio.")]
+        [Range(0, double.MaxValue, ErrorMessage = "El deducible debe ser positivo.")]
+        [Column(TypeName = "decimal(18, 2)")]
+        public decimal Deducible { get; set; }
+
+        // ¿Se renueva automáticamente?
+        public bool AutoRenew { get; set; } = false;
+
+        // Teléfono de emergencia
+        [Phone]
+        [StringLength(20)]
+        public string? EmergencyPhone { get; set; }
+
+        // Agente de seguros
+        [StringLength(100)]
+        public string? AgentName { get; set; }
+
+        [Phone]
+        [StringLength(20)]
+        public string? AgentPhone { get; set; }
+
+        // Relación con reparaciones
+        [JsonIgnore]
+        public virtual ICollection<Repair>? Repairs { get; set; }
+
+        // ============ ENUMS ============
+
+        public enum PolicyStatus
+        {
+            Activa,
+            Vencida,
+            Cancelada,
+            Suspendida,
+            Renovacion_Pendiente
+        }
+
+        public enum InsurancePolicyType
+        {
+            Todo_Riesgo,
+            Responsabilidad_Civil,
+            Daños_Propios,
+            Robo_Incendio,
+            Basico
+        }
     }
 }

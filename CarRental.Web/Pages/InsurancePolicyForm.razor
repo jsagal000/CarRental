@@ -78,6 +78,65 @@
                 <InputDate @bind-Value="Policy.EndDate" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
                 <ValidationMessage For="@(() => Policy.EndDate)" />
             </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Deducible:</label>
+                <InputNumber @bind-Value="Policy.Deducible" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+                <ValidationMessage For="@(() => Policy.Deducible)" />
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Número de Cuotas:</label>
+                <InputNumber @bind-Value="Policy.NumberOfInstallments" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+                <ValidationMessage For="@(() => Policy.NumberOfInstallments)" />
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Cuota Mensual:</label>
+                <InputNumber @bind-Value="Policy.MonthlyInstallment" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+                <ValidationMessage For="@(() => Policy.MonthlyInstallment)" />
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Fecha de Inicio:</label>
+                <InputDate @bind-Value="Policy.StartDate" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+                <ValidationMessage For="@(() => Policy.StartDate)" />
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Fecha de Fin:</label>
+                <InputDate @bind-Value="Policy.EndDate" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+                <ValidationMessage For="@(() => Policy.EndDate)" />
+            </div>
+
+            <div class="flex items-center md:col-span-2">
+                <label class="flex items-center">
+                    <InputCheckbox @bind-Value="Policy.AutoRenew" class="mr-2 h-4 w-4 text-blue-600 border-gray-300 rounded" />
+                    <span class="text-sm font-medium text-gray-700">¿Se renueva automáticamente?</span>
+                </label>
+            </div>
+
+            <!-- Separador visual -->
+            <div class="md:col-span-2 border-t border-gray-300 pt-4 mt-2">
+                <h4 class="text-lg font-semibold text-gray-700 mb-3">Información de Contacto</h4>
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Teléfono de Emergencia:</label>
+                <InputText @bind-Value="Policy.EmergencyPhone" type="tel" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" placeholder="Ej: 1-800-SEGURO" />
+                <ValidationMessage For="@(() => Policy.EmergencyPhone)" />
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Nombre del Agente:</label>
+                <InputText @bind-Value="Policy.AgentName" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" placeholder="Ej: Juan Pérez" />
+                <ValidationMessage For="@(() => Policy.AgentName)" />
+            </div>
+
+            <div>
+                <label class="block text-sm font-medium text-gray-700">Teléfono del Agente:</label>
+                <InputText @bind-Value="Policy.AgentPhone" type="tel" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" placeholder="Ej: 099-123-4567" />
+                <ValidationMessage For="@(() => Policy.AgentPhone)" />
+            </div>
         </div>
 
         <div class="flex justify-end space-x-4 pt-6">
@@ -111,7 +170,12 @@
             NumberOfInstallments = Policy.NumberOfInstallments,
             MonthlyInstallment = Policy.MonthlyInstallment,
             StartDate = Policy.StartDate,
-            EndDate = Policy.EndDate        
+            EndDate = Policy.EndDate,
+            Deducible = Policy.Deducible,
+            AutoRenew = Policy.AutoRenew,
+            EmergencyPhone = Policy.EmergencyPhone,
+            AgentName = Policy.AgentName,
+            AgentPhone = Policy.AgentPhone
         };
         await JSRuntime.InvokeVoidAsync("console.log", "Datos que se enviarán a la API:", policyAsJson);
 
@@ -133,4 +197,25 @@
             await OnSaveOrCancel.InvokeAsync();
         }
     }
+
+    // Métodos para mostrar textos en español
+    private string GetPolicyStatusText(InsurancePolicy.PolicyStatus status) => status switch
+    {
+        InsurancePolicy.PolicyStatus.Activa => "Activa",
+        InsurancePolicy.PolicyStatus.Vencida => "Vencida",
+        InsurancePolicy.PolicyStatus.Cancelada => "Cancelada",
+        InsurancePolicy.PolicyStatus.Suspendida => "Suspendida",
+        InsurancePolicy.PolicyStatus.Renovacion_Pendiente => "Renovación Pendiente",
+        _ => status.ToString()
+    };
+
+    private string GetPolicyTypeText(InsurancePolicy.InsurancePolicyType type) => type switch
+    {
+        InsurancePolicy.InsurancePolicyType.Todo_Riesgo => "Todo Riesgo",
+        InsurancePolicy.InsurancePolicyType.Responsabilidad_Civil => "Responsabilidad Civil",
+        InsurancePolicy.InsurancePolicyType.Daños_Propios => "Daños Propios",
+        InsurancePolicy.InsurancePolicyType.Robo_Incendio => "Robo e Incendio",
+        InsurancePolicy.InsurancePolicyType.Basico => "Básico",
+        _ => type.ToString()
+    };
 }

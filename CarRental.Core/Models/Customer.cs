@@ -17,7 +17,7 @@ namespace CarRental.Core.Models
 
         [EmailAddress(ErrorMessage = "El formato del correo electrónico no es válido.")] // Email format validation
         [StringLength(150, ErrorMessage = "El correo electrónico no puede exceder los 150 caracteres.")] // Max length for email
-        public string Email { get; set; }
+        public string? Email { get; set; }
 
         [Required(ErrorMessage = "El número de teléfono es obligatorio.")] // Phone number is required
         [Phone(ErrorMessage = "El formato del número de teléfono no es válido.")] // Phone format validation

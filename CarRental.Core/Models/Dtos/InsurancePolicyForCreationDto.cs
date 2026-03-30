@@ -3,8 +3,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace CarRental.Core.Models.Dtos
 {
-    // Este es un Objeto de Transferencia de Datos (DTO).
-    // Solo contiene los campos que el usuario rellena en el formulario.
+
     public class InsurancePolicyForCreationDto
     {
         [Required(ErrorMessage = "El nombre de la aseguradora es obligatorio.")]
@@ -38,5 +37,24 @@ namespace CarRental.Core.Models.Dtos
 
         [Required(ErrorMessage = "La fecha de fin es obligatoria.")]
         public DateTime EndDate { get; set; }
+
+        // ============ CAMPOS NUEVOS ============
+
+        [Required(ErrorMessage = "El deducible es obligatorio.")]
+        [Range(0, double.MaxValue, ErrorMessage = "El deducible debe ser positivo.")]
+        public decimal Deducible { get; set; }
+
+        public bool AutoRenew { get; set; } = false;
+
+        [Phone(ErrorMessage = "El formato del teléfono no es válido.")]
+        [StringLength(20, ErrorMessage = "El teléfono no puede exceder 20 caracteres.")]
+        public string? EmergencyPhone { get; set; }
+
+        [StringLength(100, ErrorMessage = "El nombre del agente no puede exceder 100 caracteres.")]
+        public string? AgentName { get; set; }
+
+        [Phone(ErrorMessage = "El formato del teléfono no es válido.")]
+        [StringLength(20, ErrorMessage = "El teléfono no puede exceder 20 caracteres.")]
+        public string? AgentPhone { get; set; }
     }
 }

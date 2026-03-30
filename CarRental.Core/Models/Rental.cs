@@ -30,11 +30,6 @@ namespace CarRental.Core.Models
         public DateTime EndDate { get; set; }
 
 
-        //[Required(ErrorMessage = "La hora de entrega es obligatoria.")]
-        //[RegularExpression(@"^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$", ErrorMessage = "El formato de hora debe ser HH:mm.")]
-        //public string StartTimeInput { get; set; } = "09:00"; // Campo de texto para la hora
-
-
         [Range(0.01, double.MaxValue, ErrorMessage = "La tarifa diaria debe ser mayor que cero.")]
         [Column(TypeName = "decimal(18, 2)")] // Define la precisión y escala para la base de datos
         public decimal DailyRate { get; set; } // Tarifa acordada para ESTE alquiler

@@ -3,6 +3,7 @@ using System;
 using CarRental.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -10,9 +11,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace CarRental.Infrastructure.Migrations
 {
     [DbContext(typeof(CarRentalDbContext))]
-    partial class CarRentalDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260323235047_MakeEmailNullable")]
+    partial class MakeEmailNullable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.5");
@@ -256,26 +259,8 @@ namespace CarRental.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<string>("AgentName")
-                        .HasMaxLength(100)
-                        .HasColumnType("TEXT");
-
-                    b.Property<string>("AgentPhone")
-                        .HasMaxLength(20)
-                        .HasColumnType("TEXT");
-
-                    b.Property<bool>("AutoRenew")
-                        .HasColumnType("INTEGER");
-
                     b.Property<decimal>("CoverageAmount")
                         .HasColumnType("decimal(18, 2)");
-
-                    b.Property<decimal>("Deducible")
-                        .HasColumnType("decimal(18, 2)");
-
-                    b.Property<string>("EmergencyPhone")
-                        .HasMaxLength(20)
-                        .HasColumnType("TEXT");
 
                     b.Property<DateTime>("EndDate")
                         .HasColumnType("TEXT");
@@ -321,9 +306,6 @@ namespace CarRental.Infrastructure.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER");
 
-                    b.Property<int>("Category")
-                        .HasColumnType("INTEGER");
-
                     b.Property<decimal>("Cost")
                         .HasColumnType("decimal(18, 2)");
 
@@ -335,24 +317,7 @@ namespace CarRental.Infrastructure.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("TEXT");
 
-                    b.Property<string>("InvoiceNumber")
-                        .HasMaxLength(50)
-                        .HasColumnType("TEXT");
-
                     b.Property<int>("Mileage")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<DateTime?>("NextMaintenanceDate")
-                        .HasColumnType("TEXT");
-
-                    b.Property<int?>("NextMaintenanceMileage")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(1000)
-                        .HasColumnType("TEXT");
-
-                    b.Property<int>("Type")
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("VehicleId")
@@ -377,6 +342,7 @@ namespace CarRental.Infrastructure.Migrations
                         .HasColumnType("INTEGER");
 
                     b.Property<string>("AccountNumber")
+                        .IsRequired()
                         .HasMaxLength(30)
                         .HasColumnType("TEXT");
 
@@ -386,6 +352,7 @@ namespace CarRental.Infrastructure.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Bank")
+                        .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
@@ -431,7 +398,7 @@ namespace CarRental.Infrastructure.Migrations
                     b.Property<DateTime>("RegistrationDate")
                         .HasColumnType("TEXT");
 
-                    b.Property<int?>("TypeOfAccount")
+                    b.Property<int>("TypeOfAccount")
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("TypeOfDocument")
@@ -645,12 +612,6 @@ namespace CarRental.Infrastructure.Migrations
                     b.Property<decimal>("Cost")
                         .HasColumnType("decimal(18, 2)");
 
-                    b.Property<decimal?>("CustomerCharge")
-                        .HasColumnType("decimal(18, 2)");
-
-                    b.Property<bool>("CustomerResponsible")
-                        .HasColumnType("INTEGER");
-
                     b.Property<DateTime>("Date")
                         .HasColumnType("TEXT");
 
@@ -659,35 +620,10 @@ namespace CarRental.Infrastructure.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("TEXT");
 
-                    b.Property<int?>("InsurancePolicyId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<bool>("IsCoveredByInsurance")
-                        .HasColumnType("INTEGER");
-
                     b.Property<bool>("IsWarranty")
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("Mileage")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<string>("Notes")
-                        .HasMaxLength(1000)
-                        .HasColumnType("TEXT");
-
-                    b.Property<bool>("OccurredDuringRental")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int?>("RentalId")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("Severity")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("INTEGER");
-
-                    b.Property<int>("Type")
                         .HasColumnType("INTEGER");
 
                     b.Property<int>("VehicleId")
@@ -699,10 +635,6 @@ namespace CarRental.Infrastructure.Migrations
                         .HasColumnType("TEXT");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("InsurancePolicyId");
-
-                    b.HasIndex("RentalId");
 
                     b.HasIndex("VehicleId");
 
@@ -796,7 +728,7 @@ namespace CarRental.Infrastructure.Migrations
                         new
                         {
                             Id = 1,
-                            CreatedAt = new DateTime(2026, 3, 26, 3, 45, 37, 378, DateTimeKind.Utc).AddTicks(6979),
+                            CreatedAt = new DateTime(2026, 3, 23, 23, 50, 44, 955, DateTimeKind.Utc).AddTicks(9587),
                             Email = "admin@carrental.com",
                             FirstName = "Administrador",
                             IsActive = true,
@@ -1019,23 +951,11 @@ namespace CarRental.Infrastructure.Migrations
 
             modelBuilder.Entity("CarRental.Core.Models.Repair", b =>
                 {
-                    b.HasOne("CarRental.Core.Models.InsurancePolicy", "InsurancePolicy")
-                        .WithMany("Repairs")
-                        .HasForeignKey("InsurancePolicyId");
-
-                    b.HasOne("CarRental.Core.Models.Rental", "Rental")
-                        .WithMany()
-                        .HasForeignKey("RentalId");
-
                     b.HasOne("CarRental.Core.Models.Vehicle", "Vehicle")
                         .WithMany()
                         .HasForeignKey("VehicleId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("InsurancePolicy");
-
-                    b.Navigation("Rental");
 
                     b.Navigation("Vehicle");
                 });
@@ -1088,11 +1008,6 @@ namespace CarRental.Infrastructure.Migrations
                         .HasForeignKey("PartnerId");
 
                     b.Navigation("Partner");
-                });
-
-            modelBuilder.Entity("CarRental.Core.Models.InsurancePolicy", b =>
-                {
-                    b.Navigation("Repairs");
                 });
 
             modelBuilder.Entity("CarRental.Core.Models.Permission", b =>

@@ -25,7 +25,6 @@ namespace CarRental.Api.Controllers
             return Ok(policies);
         }
 
-        // ... (resto de los métodos GET y DELETE sin cambios) ...
 
         [HttpPost("vehicles/{vehicleId}/insurancepolicies")]
         public async Task<IActionResult> CreatePolicy(int vehicleId, [FromBody] InsurancePolicyForCreationDto policyDto)
@@ -40,14 +39,21 @@ namespace CarRental.Api.Controllers
             // Mapeamos manualmente el DTO al modelo de base de datos
             var policy = new InsurancePolicy
             {
-                VehicleId = vehicleId, // <-- Tomado de la URL
+                VehicleId = vehicleId,
                 InsurerName = policyDto.InsurerName,
                 PolicyType = policyDto.PolicyType,
                 CoverageAmount = policyDto.CoverageAmount,
                 Rate = policyDto.Rate,
                 NumberOfInstallments = policyDto.NumberOfInstallments,
                 StartDate = policyDto.StartDate,
-                EndDate = policyDto.EndDate
+                EndDate = policyDto.EndDate,
+                InsurancePremium = policyDto.InsurancePremium,
+                MonthlyInstallment = policyDto.MonthlyInstallment,
+                Deducible = policyDto.Deducible,
+                AutoRenew = policyDto.AutoRenew,
+                EmergencyPhone = policyDto.EmergencyPhone,
+                AgentName = policyDto.AgentName,
+                AgentPhone = policyDto.AgentPhone
             };
 
             var newPolicy = await _insurancePolicyService.AddPolicyAsync(policy);
@@ -76,6 +82,13 @@ namespace CarRental.Api.Controllers
             policyToUpdate.NumberOfInstallments = policyDto.NumberOfInstallments;
             policyToUpdate.StartDate = policyDto.StartDate;
             policyToUpdate.EndDate = policyDto.EndDate;
+            policyToUpdate.InsurancePremium = policyDto.InsurancePremium;
+            policyToUpdate.MonthlyInstallment = policyDto.MonthlyInstallment;
+            policyToUpdate.Deducible = policyDto.Deducible;
+            policyToUpdate.AutoRenew = policyDto.AutoRenew;
+            policyToUpdate.EmergencyPhone = policyDto.EmergencyPhone;
+            policyToUpdate.AgentName = policyDto.AgentName;
+            policyToUpdate.AgentPhone = policyDto.AgentPhone;
 
             await _insurancePolicyService.UpdatePolicyAsync(policyToUpdate);
             return NoContent();

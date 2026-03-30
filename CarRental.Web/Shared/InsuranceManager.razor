@@ -1,6 +1,7 @@
 ﻿@using CarRental.Core.Models
 @using CarRental.Web.Services
 @using Blazored.Toast.Services
+@inject CarRental.Web.Services.ModalService ModalService
 @using CarRental.Core.Models.Dtos
 @inject IVehicleSubResourceApiClient<InsurancePolicy, InsurancePolicyForCreationDto> ApiClient
 @inject IToastService ToastService
@@ -99,7 +100,14 @@
 
     private async Task ConfirmDelete(int policyId)
     {
-        var confirmed = await JSRuntime.InvokeAsync<bool>("confirm", "¿Estás seguro de que quieres eliminar esta póliza?");
+        // Obtener la póliza para mostrar información
+        var policy = _policies.FirstOrDefault(p => p.Id == policyId);
+        var itemName = policy != null
+            ? $"la póliza de {policy.InsurerName}"
+            : "esta póliza de seguro";
+
+        var confirmed = await ModalService.ConfirmDeleteAsync(itemName);
+
         if (confirmed)
         {
             var result = await ApiClient.DeleteAsync(policyId);
