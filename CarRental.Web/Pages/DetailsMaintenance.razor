@@ -1,0 +1,247 @@
+﻿<h3>DetailsMaintenance</h3>
+
+@code {
+
+}
+@page "/maintenances/details/{Id:int}"
+@inject HttpClient HttpClient
+@inject VehicleApiClient VehicleApiClient
+@inject NavigationManager NavigationManager
+@inject IToastService ToastService
+@using CarRental.Core.Models
+@using CarRental.Web.Services
+@using Blazored.Toast.Services
+@using System.Net.Http.Json
+
+<div class="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4 font-sans">
+    <div class="max-w-4xl mx-auto animate-in slide-in-from-bottom-4 duration-700">
+
+        <nav class="mb-6">
+            <ol class="flex items-center space-x-2 text-sm text-gray-600">
+                <li><a href="/vehicles" class="hover:text-blue-600 transition-colors">Vehículos</a></li>
+                <li><span class="mx-2">›</span></li>
+                <li class="text-gray-900 font-medium">Detalles del Mantenimiento</li>
+            </ol>
+        </nav>
+
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-900">Detalles del Mantenimiento</h1>
+        </div>
+
+        @if (_isLoading)
+        {
+            <div class="bg-white rounded-2xl shadow-lg p-8">
+                <div class="flex flex-col items-center justify-center space-y-4">
+                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                    <p class="text-gray-600 text-lg">Cargando información del mantenimiento...</p>
+                </div>
+            </div>
+        }
+        else if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <div class="bg-white rounded-2xl shadow-lg p-8">
+                <div class="flex flex-col items-center justify-center space-y-4">
+                    <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                        <span class="text-2xl">⚠️</span>
+                    </div>
+                    <div class="text-center">
+                        <h3 class="text-lg font-semibold text-red-800 mb-2">Error al cargar los datos</h3>
+                        <p class="text-red-600">@_errorMessage</p>
+                    </div>
+                    <button @onclick="GoBack" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
+                        Volver
+                    </button>
+                </div>
+            </div>
+        }
+        else if (_maintenance != null)
+        {
+            <div class="bg-white rounded-2xl shadow-lg overflow-hidden space-y-6">
+
+                <!-- Información General -->
+                <div class="px-6 pt-4">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">Información General</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8">
+                        @DisplayItem("Fecha", _maintenance.Date.ToString("dd/MM/yyyy"))
+                        @DisplayItem("Costo", _maintenance.Cost.ToString("C"))
+                        @DisplayItem("Taller", _maintenance.WorkshopName ?? "No especificado")
+                        @DisplayItem("Kilometraje", $"{_maintenance.Mileage:N0} km")
+                        @DisplayItem("Tipo", GetMaintenanceTypeText(_maintenance.Type))
+                        @DisplayItem("Categoría", GetMaintenanceCategoryText(_maintenance.Category))
+                    </div>
+                </div>
+
+                <!-- Descripción -->
+                <div class="px-6">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">Descripción</h2>
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <p class="text-gray-700">@_maintenance.Description</p>
+                    </div>
+                </div>
+
+                <!-- Información Adicional -->
+                @if (_maintenance.NextMaintenanceDate.HasValue || _maintenance.NextMaintenanceMileage.HasValue || !string.IsNullOrEmpty(_maintenance.InvoiceNumber))
+                {
+                    <div class="px-6">
+                        <h2 class="text-xl font-semibold text-gray-800 mb-4">Próximo Mantenimiento</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8">
+                            @if (_maintenance.NextMaintenanceDate.HasValue)
+                            {
+                                @DisplayItem("Próxima Fecha", _maintenance.NextMaintenanceDate.Value.ToString("dd/MM/yyyy"))
+                            }
+                            @if (_maintenance.NextMaintenanceMileage.HasValue)
+                            {
+                                @DisplayItem("Próximo Kilometraje", $"{_maintenance.NextMaintenanceMileage.Value:N0} km")
+                            }
+                            @if (!string.IsNullOrEmpty(_maintenance.InvoiceNumber))
+                            {
+                                @DisplayItem("Número de Factura", _maintenance.InvoiceNumber)
+                            }
+                        </div>
+                    </div>
+                }
+
+                <!-- Notas -->
+                @if (!string.IsNullOrEmpty(_maintenance.Notes))
+                {
+                    <div class="px-6">
+                        <h2 class="text-xl font-semibold text-gray-800 mb-4">Notas Adicionales</h2>
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <p class="text-gray-700 whitespace-pre-line">@_maintenance.Notes</p>
+                        </div>
+                    </div>
+                }
+
+                <!-- Información del Vehículo -->
+                @if (_vehicle != null)
+                {
+                    <div class="px-6 pb-6">
+                        <h2 class="text-xl font-semibold text-gray-800 mb-4">Vehículo</h2>
+                        <div class="bg-blue-50 rounded-lg p-4">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-lg font-semibold text-gray-800">@_vehicle.Make @_vehicle.Model</p>
+                                    <p class="text-sm text-gray-600">@_vehicle.Year - Placa: @_vehicle.LicensePlate</p>
+                                </div>
+                                <a href="/vehicles/details/@_vehicle.Id" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                                    Ver Vehículo
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                <!-- Botones de acción -->
+                <div class="bg-gray-50 px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
+                    <button @onclick="GoBack" class="px-6 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors">
+                        Volver
+                    </button>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private Maintenance? _maintenance;
+    private Vehicle? _vehicle;
+    private bool _isLoading = true;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadMaintenance();
+    }
+
+    private async Task LoadMaintenance()
+    {
+        _isLoading = true;
+        try
+        {
+            _maintenance = await HttpClient.GetFromJsonAsync<Maintenance>($"api/maintenances/{Id}");
+
+            if (_maintenance != null)
+            {
+                await LoadVehicle(_maintenance.VehicleId);
+            }
+            else
+            {
+                _errorMessage = "No se encontró el mantenimiento.";
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            _errorMessage = $"Error al cargar el mantenimiento: {ex.Message}";
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error inesperado: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task LoadVehicle(int vehicleId)
+    {
+        try
+        {
+            var result = await VehicleApiClient.GetVehicleByIdAsync(vehicleId);
+            if (result.IsSuccess)
+            {
+                _vehicle = result.Data;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar vehículo: {ex.Message}");
+        }
+    }
+
+    private void GoBack()
+    {
+        if (_maintenance != null)
+        {
+            NavigationManager.NavigateTo($"/vehicles/details/{_maintenance.VehicleId}");
+        }
+        else
+        {
+            NavigationManager.NavigateTo("/vehicles");
+        }
+    }
+
+    private RenderFragment DisplayItem(string label, string value) => __builder =>
+    {
+        <div>
+            <dt class="text-sm font-medium text-gray-500 mb-1">@label</dt>
+            <dd class="text-base text-gray-900">@value</dd>
+        </div>
+    };
+
+    private string GetMaintenanceTypeText(Maintenance.MaintenanceType type) => type switch
+    {
+        Maintenance.MaintenanceType.Preventivo => "Preventivo",
+        Maintenance.MaintenanceType.Correctivo => "Correctivo",
+        Maintenance.MaintenanceType.Predictivo => "Predictivo",
+        Maintenance.MaintenanceType.Programado => "Programado",
+        _ => type.ToString()
+    };
+
+    private string GetMaintenanceCategoryText(Maintenance.MaintenanceCategory category) => category switch
+    {
+        Maintenance.MaintenanceCategory.Motor => "Motor",
+        Maintenance.MaintenanceCategory.Transmision => "Transmisión",
+        Maintenance.MaintenanceCategory.Frenos => "Frenos",
+        Maintenance.MaintenanceCategory.Suspension => "Suspensión",
+        Maintenance.MaintenanceCategory.Sistema_Electrico => "Sistema Eléctrico",
+        Maintenance.MaintenanceCategory.Neumaticos => "Neumáticos",
+        Maintenance.MaintenanceCategory.Aire_Acondicionado => "Aire Acondicionado",
+        Maintenance.MaintenanceCategory.Carroceria => "Carrocería",
+        Maintenance.MaintenanceCategory.Revision_General => "Revisión General",
+        Maintenance.MaintenanceCategory.Otros => "Otros",
+        _ => category.ToString()
+    };
+}

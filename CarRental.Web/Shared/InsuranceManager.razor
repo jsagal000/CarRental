@@ -5,6 +5,7 @@
 @using CarRental.Core.Models.Dtos
 @inject IVehicleSubResourceApiClient<InsurancePolicy, InsurancePolicyForCreationDto> ApiClient
 @inject IToastService ToastService
+@inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
 
 <div class="p-4">
@@ -52,6 +53,9 @@
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">@policy.StartDate.ToString("dd/MM/yy") - @policy.EndDate.ToString("dd/MM/yy")</td>
                             <td class="px-4 py-3 whitespace-nowrap text-sm text-center">
                                 <div class="flex justify-center space-x-2">
+                                    <button @onclick="() => ViewDetails(policy.Id)" class="p-2 bg-blue-100 text-blue-700 hover:bg-blue-200 rounded-full" title="Ver Detalles">
+                                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                                    </button>
                                     <button @onclick="() => OnEditRequest.InvokeAsync(policy)" class="p-2 bg-yellow-100 text-yellow-700 hover:bg-yellow-200 rounded-full" title="Editar">
                                         <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
                                     </button>
@@ -96,6 +100,11 @@
 
         _isLoading = false;
         StateHasChanged();
+    }
+
+    private void ViewDetails(int policyId)
+    {
+        NavigationManager.NavigateTo($"/insurancepolicies/details/{policyId}");
     }
 
     private async Task ConfirmDelete(int policyId)

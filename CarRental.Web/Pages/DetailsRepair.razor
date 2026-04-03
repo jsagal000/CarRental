@@ -1,0 +1,270 @@
+﻿<h3>DetailsRepair</h3>
+
+@code {
+
+}
+@page "/repairs/details/{Id:int}"
+@inject HttpClient HttpClient
+@inject VehicleApiClient VehicleApiClient
+@inject NavigationManager NavigationManager
+@inject IToastService ToastService
+@using CarRental.Core.Models
+@using CarRental.Web.Services
+@using Blazored.Toast.Services
+@using System.Net.Http.Json
+
+<div class="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4 font-sans">
+    <div class="max-w-4xl mx-auto animate-in slide-in-from-bottom-4 duration-700">
+
+        <nav class="mb-6">
+            <ol class="flex items-center space-x-2 text-sm text-gray-600">
+                <li><a href="/vehicles" class="hover:text-blue-600 transition-colors">Vehículos</a></li>
+                <li><span class="mx-2">›</span></li>
+                <li class="text-gray-900 font-medium">Detalles de la Reparación</li>
+            </ol>
+        </nav>
+
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-gray-900">Detalles de la Reparación</h1>
+        </div>
+
+        @if (_isLoading)
+        {
+            <div class="bg-white rounded-2xl shadow-lg p-8">
+                <div class="flex flex-col items-center justify-center space-y-4">
+                    <div class="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                    <p class="text-gray-600 text-lg">Cargando información de la reparación...</p>
+                </div>
+            </div>
+        }
+        else if (!string.IsNullOrEmpty(_errorMessage))
+        {
+            <div class="bg-white rounded-2xl shadow-lg p-8">
+                <div class="flex flex-col items-center justify-center space-y-4">
+                    <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center">
+                        <span class="text-2xl">⚠️</span>
+                    </div>
+                    <div class="text-center">
+                        <h3 class="text-lg font-semibold text-red-800 mb-2">Error al cargar los datos</h3>
+                        <p class="text-red-600">@_errorMessage</p>
+                    </div>
+                    <button @onclick="GoBack" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors duration-200">
+                        Volver
+                    </button>
+                </div>
+            </div>
+        }
+        else if (_repair != null)
+        {
+            <div class="bg-white rounded-2xl shadow-lg overflow-hidden space-y-6">
+
+                <!-- Información General -->
+                <div class="px-6 pt-4">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">Información General</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8">
+                        @DisplayItem("Fecha", _repair.Date.ToString("dd/MM/yyyy"))
+                        @DisplayItem("Costo", _repair.Cost.ToString("C"))
+                        @DisplayItem("Taller", _repair.WorkshopName ?? "No especificado")
+                        @DisplayItem("Kilometraje", $"{_repair.Mileage:N0} km")
+                        @DisplayItem("Tipo", GetRepairTypeText(_repair.Type))
+                        @DisplayItem("Severidad", GetRepairSeverityText(_repair.Severity))
+                        @DisplayItem("Estado", GetRepairStatusText(_repair.Status))
+                        @DisplayBadge("¿Por Garantía?", _repair.IsWarranty ? "Sí" : "No", _repair.IsWarranty ? "green" : "gray")
+                    </div>
+                </div>
+
+                <!-- Descripción -->
+                <div class="px-6">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">Descripción del Daño</h2>
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <p class="text-gray-700">@_repair.Description</p>
+                    </div>
+                </div>
+
+                <!-- Información de Seguro y Responsabilidad -->
+                <div class="px-6">
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">Seguro y Responsabilidad</h2>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8">
+                        @DisplayBadge("Cubierto por Seguro", _repair.IsCoveredByInsurance ? "Sí" : "No", _repair.IsCoveredByInsurance ? "blue" : "gray")
+                        @DisplayBadge("Ocurrió en Alquiler", _repair.OccurredDuringRental ? "Sí" : "No", _repair.OccurredDuringRental ? "yellow" : "gray")
+                        @DisplayBadge("Cliente Responsable", _repair.CustomerResponsible ? "Sí" : "No", _repair.CustomerResponsible ? "red" : "gray")
+                        @if (_repair.CustomerCharge.HasValue && _repair.CustomerCharge.Value > 0)
+                        {
+                            @DisplayItem("Monto a Cobrar al Cliente", _repair.CustomerCharge.Value.ToString("C"))
+                        }
+                    </div>
+                </div>
+
+                <!-- Notas -->
+                @if (!string.IsNullOrEmpty(_repair.Notes))
+                {
+                    <div class="px-6">
+                        <h2 class="text-xl font-semibold text-gray-800 mb-4">Notas Adicionales</h2>
+                        <div class="bg-gray-50 rounded-lg p-4">
+                            <p class="text-gray-700 whitespace-pre-line">@_repair.Notes</p>
+                        </div>
+                    </div>
+                }
+
+                <!-- Información del Vehículo -->
+                @if (_vehicle != null)
+                {
+                    <div class="px-6 pb-6">
+                        <h2 class="text-xl font-semibold text-gray-800 mb-4">Vehículo</h2>
+                        <div class="bg-blue-50 rounded-lg p-4">
+                            <div class="flex items-center justify-between">
+                                <div>
+                                    <p class="text-lg font-semibold text-gray-800">@_vehicle.Make @_vehicle.Model</p>
+                                    <p class="text-sm text-gray-600">@_vehicle.Year - Placa: @_vehicle.LicensePlate</p>
+                                </div>
+                                <a href="/vehicles/details/@_vehicle.Id" class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                                    Ver Vehículo
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                }
+
+                <!-- Botones de acción -->
+                <div class="bg-gray-50 px-6 py-4 border-t border-gray-200 flex justify-end space-x-3">
+                    <button @onclick="GoBack" class="px-6 py-2 bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors">
+                        Volver
+                    </button>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+@code {
+    [Parameter] public int Id { get; set; }
+
+    private Repair? _repair;
+    private Vehicle? _vehicle;
+    private bool _isLoading = true;
+    private string? _errorMessage;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRepair();
+    }
+
+    private async Task LoadRepair()
+    {
+        _isLoading = true;
+        try
+        {
+            _repair = await HttpClient.GetFromJsonAsync<Repair>($"api/repairs/{Id}");
+
+            if (_repair != null)
+            {
+                await LoadVehicle(_repair.VehicleId);
+            }
+            else
+            {
+                _errorMessage = "No se encontró la reparación.";
+            }
+        }
+        catch (HttpRequestException ex)
+        {
+            _errorMessage = $"Error al cargar la reparación: {ex.Message}";
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error inesperado: {ex.Message}";
+        }
+        finally
+        {
+            _isLoading = false;
+        }
+    }
+
+    private async Task LoadVehicle(int vehicleId)
+    {
+        try
+        {
+            var result = await VehicleApiClient.GetVehicleByIdAsync(vehicleId);
+            if (result.IsSuccess)
+            {
+                _vehicle = result.Data;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error al cargar vehículo: {ex.Message}");
+        }
+    }
+
+    private void GoBack()
+    {
+        if (_repair != null)
+        {
+            NavigationManager.NavigateTo($"/vehicles/details/{_repair.VehicleId}");
+        }
+        else
+        {
+            NavigationManager.NavigateTo("/vehicles");
+        }
+    }
+
+    private RenderFragment DisplayItem(string label, string value) => __builder =>
+    {
+        <div>
+            <dt class="text-sm font-medium text-gray-500 mb-1">@label</dt>
+            <dd class="text-base text-gray-900">@value</dd>
+        </div>
+    };
+
+    private RenderFragment DisplayBadge(string label, string value, string color) => __builder =>
+    {
+        var badgeClass = color switch
+        {
+            "green" => "bg-green-100 text-green-800",
+            "blue" => "bg-blue-100 text-blue-800",
+            "yellow" => "bg-yellow-100 text-yellow-800",
+            "red" => "bg-red-100 text-red-800",
+            _ => "bg-gray-100 text-gray-800"
+        };
+
+        <div>
+            <dt class="text-sm font-medium text-gray-500 mb-1">@label</dt>
+            <dd class="text-base">
+                <span class="@($"inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium {badgeClass}")">
+                    @value
+                </span>
+            </dd>
+        </div>
+    };
+
+    private string GetRepairTypeText(Repair.RepairType type) => type switch
+    {
+        Repair.RepairType.Accidente => "Accidente",
+        Repair.RepairType.Desgaste => "Desgaste",
+        Repair.RepairType.Vandalismo => "Vandalismo",
+        Repair.RepairType.Fallo_Mecanico => "Fallo Mecánico",
+        Repair.RepairType.Climatico => "Climático",
+        Repair.RepairType.Otros => "Otros",
+        _ => type.ToString()
+    };
+
+    private string GetRepairSeverityText(Repair.RepairSeverity severity) => severity switch
+    {
+        Repair.RepairSeverity.Menor => "Menor",
+        Repair.RepairSeverity.Moderada => "Moderada",
+        Repair.RepairSeverity.Grave => "Grave",
+        Repair.RepairSeverity.Total => "Total",
+        _ => severity.ToString()
+    };
+
+    private string GetRepairStatusText(Repair.RepairStatus status) => status switch
+    {
+        Repair.RepairStatus.Pendiente => "Pendiente",
+        Repair.RepairStatus.En_Diagnostico => "En Diagnóstico",
+        Repair.RepairStatus.Aprobada => "Aprobada",
+        Repair.RepairStatus.En_Proceso => "En Proceso",
+        Repair.RepairStatus.En_Espera_Partes => "En Espera de Partes",
+        Repair.RepairStatus.Completada => "Completada",
+        Repair.RepairStatus.Cancelada => "Cancelada",
+        _ => status.ToString()
+    };
+}
