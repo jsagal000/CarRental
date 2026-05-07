@@ -1,5 +1,6 @@
 ﻿using System;
 using System.ComponentModel.DataAnnotations;
+using static CarRental.Core.Models.InsurancePolicy;
 
 namespace CarRental.Core.Models.Dtos
 {
@@ -39,6 +40,10 @@ namespace CarRental.Core.Models.Dtos
         public DateTime EndDate { get; set; }
 
         // ============ CAMPOS NUEVOS ============
+        [Required(ErrorMessage = "El estado de la poliza de seguro es obligatorio.")]
+        public PolicyStatus Status { get; set; }
+        [Required(ErrorMessage = "El tipo de seguro es obligatorio.")]
+        public InsurancePolicyType TypePolicy { get; set; }
 
         [Required(ErrorMessage = "El deducible es obligatorio.")]
         [Range(0, double.MaxValue, ErrorMessage = "El deducible debe ser positivo.")]

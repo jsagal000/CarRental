@@ -58,7 +58,7 @@
                     <h2 class="text-xl font-semibold text-gray-800 mb-4">Información de la Póliza</h2>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8">
                         @DisplayItem("Aseguradora", _policy.InsurerName)
-                        @DisplayItem("Tipo de Seguro", _policy.PolicyType)
+                        @DisplayItem("Tipo de Seguro", GetPolicyTypeText(_policy.TypePolicy))
                     </div>
                 </div>
 
@@ -93,6 +93,7 @@
                             var statusColor = daysRemaining > 30 ? "green" : daysRemaining > 0 ? "yellow" : "red";
                         }
                         @DisplayBadge("Estado de Vigencia", status, statusColor)
+                        @DisplayItem("Estado", GetPolicyStatusText(_policy.Status))
                     </div>
                 </div>
 
@@ -224,5 +225,25 @@
                 </span>
             </dd>
         </div>
+    };
+
+    private string GetPolicyStatusText(InsurancePolicy.PolicyStatus status) => status switch
+    {
+        InsurancePolicy.PolicyStatus.Activa => "Activa",
+        InsurancePolicy.PolicyStatus.Vencida => "Vencida",
+        InsurancePolicy.PolicyStatus.Cancelada => "Cancelada",
+        InsurancePolicy.PolicyStatus.Suspendida => "Suspendida",
+        InsurancePolicy.PolicyStatus.Renovacion_Pendiente => "Renovación Pendiente",
+        _ => status.ToString()
+    };
+
+    private string GetPolicyTypeText(InsurancePolicy.InsurancePolicyType type) => type switch
+    {
+        InsurancePolicy.InsurancePolicyType.Todo_Riesgo => "Todo Riesgo",
+        InsurancePolicy.InsurancePolicyType.Responsabilidad_Civil => "Responsabilidad Civil",
+        InsurancePolicy.InsurancePolicyType.Daños_Propios => "Daños Propios",
+        InsurancePolicy.InsurancePolicyType.Robo_Incendio => "Robo e Incendio",
+        InsurancePolicy.InsurancePolicyType.Basico => "Básico",
+        _ => type.ToString()
     };
 }

@@ -4,6 +4,7 @@
 @using Blazored.Toast.Services
 @using System.Text.Json
 @using CarRental.Core.Models.Dtos
+@using System.Globalization
 @inject IVehicleSubResourceApiClient<InsurancePolicy, InsurancePolicyForCreationDto> ApiClient
 @inject IToastService ToastService
 @inject IJSRuntime JSRuntime
@@ -13,7 +14,7 @@
 
     <EditForm Model="Policy" OnValidSubmit="HandleSubmit">
         <DataAnnotationsValidator />
-        
+
         <!-- Muestra errores de validación del servidor -->
         @if (_apiResponse != null && !_apiResponse.IsSuccess)
         {
@@ -35,20 +36,30 @@
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
             <div>
                 <label class="block text-sm font-medium text-gray-700">Aseguradora:</label>
-                <InputText @bind-Value="Policy.InsurerName" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+                <InputText @bind-Value="FormattedInsurerName" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
                 <ValidationMessage For="@(() => Policy.InsurerName)" />
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700">Tipo de Póliza:</label>
-                <InputText @bind-Value="Policy.PolicyType" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
-                <ValidationMessage For="@(() => Policy.PolicyType)" />
+                <InputSelect @bind-Value="Policy.TypePolicy" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+                    @foreach (var type in Enum.GetValues<InsurancePolicy.InsurancePolicyType>())
+                    {
+                        <option value="@type">@GetPolicyTypeText(type)</option>
+                    }
+                </InputSelect>
+                <ValidationMessage For="@(() => Policy.TypePolicy)" />
             </div>
+@*             <div>
+                <label class="block text-sm font-medium text-gray-700">Tipo de Póliza:</label>
+                <InputText @bind-Value="FormattedPolicyType" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+                <ValidationMessage For="@(() => Policy.PolicyType)" />
+            </div> *@
             <div>
                 <label class="block text-sm font-medium text-gray-700">Monto de Cobertura:</label>
                 <InputNumber @bind-Value="Policy.CoverageAmount" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
                 <ValidationMessage For="@(() => Policy.CoverageAmount)" />
             </div>
-             <div>
+            <div>
                 <label class="block text-sm font-medium text-gray-700">Tasa:</label>
                 <InputNumber @bind-Value="Policy.Rate" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
                 <ValidationMessage For="@(() => Policy.Rate)" />
@@ -83,31 +94,16 @@
                 <InputNumber @bind-Value="Policy.Deducible" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
                 <ValidationMessage For="@(() => Policy.Deducible)" />
             </div>
-
             <div>
-                <label class="block text-sm font-medium text-gray-700">Número de Cuotas:</label>
-                <InputNumber @bind-Value="Policy.NumberOfInstallments" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
-                <ValidationMessage For="@(() => Policy.NumberOfInstallments)" />
+                <label class="block text-sm font-medium text-gray-700">Estado:</label>
+                <InputSelect @bind-Value="Policy.Status" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
+                    @foreach (var status in Enum.GetValues<InsurancePolicy.PolicyStatus>())
+                    {
+                        <option value="@status">@GetPolicyStatusText(status)</option>
+                    }
+                </InputSelect>
+                <ValidationMessage For="@(() => Policy.Status)" />
             </div>
-
-            <div>
-                <label class="block text-sm font-medium text-gray-700">Cuota Mensual:</label>
-                <InputNumber @bind-Value="Policy.MonthlyInstallment" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
-                <ValidationMessage For="@(() => Policy.MonthlyInstallment)" />
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-gray-700">Fecha de Inicio:</label>
-                <InputDate @bind-Value="Policy.StartDate" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
-                <ValidationMessage For="@(() => Policy.StartDate)" />
-            </div>
-
-            <div>
-                <label class="block text-sm font-medium text-gray-700">Fecha de Fin:</label>
-                <InputDate @bind-Value="Policy.EndDate" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
-                <ValidationMessage For="@(() => Policy.EndDate)" />
-            </div>
-
             <div class="flex items-center md:col-span-2">
                 <label class="flex items-center">
                     <InputCheckbox @bind-Value="Policy.AutoRenew" class="mr-2 h-4 w-4 text-blue-600 border-gray-300 rounded" />
@@ -128,7 +124,7 @@
 
             <div>
                 <label class="block text-sm font-medium text-gray-700">Nombre del Agente:</label>
-                <InputText @bind-Value="Policy.AgentName" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" placeholder="Ej: Juan Pérez" />
+                <InputText @bind-Value="FormattedAgentName" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" placeholder="Ej: Juan Pérez" />
                 <ValidationMessage For="@(() => Policy.AgentName)" />
             </div>
 
@@ -147,13 +143,30 @@
 </div>
 
 @code {
-
-
-
     [Parameter] public InsurancePolicy Policy { get; set; }
     [Parameter] public EventCallback OnSaveOrCancel { get; set; }
 
     private ApiResponse _apiResponse;
+
+    // ============ PROPIEDADES FORMATEADAS CON CAPITALIZACIÓN AUTOMÁTICA ============
+
+    private string FormattedInsurerName
+    {
+        get => Policy.InsurerName;
+        set => Policy.InsurerName = CapitalizeEachWord(value);
+    }
+
+    // private string FormattedPolicyType
+    // {
+    //     get => Policy.PolicyType;
+    //     set => Policy.PolicyType = CapitalizeEachWord(value);
+    // }
+
+    private string FormattedAgentName
+    {
+        get => Policy.AgentName;
+        set => Policy.AgentName = CapitalizeEachWord(value);
+    }
 
     private async Task HandleSubmit()
     {
@@ -163,7 +176,9 @@
         var dto = new InsurancePolicyForCreationDto
         {
             InsurerName = Policy.InsurerName,
-            PolicyType = Policy.PolicyType,
+            // PolicyType = Policy.PolicyType,
+            TypePolicy = Policy.TypePolicy,
+            Status = Policy.Status,
             CoverageAmount = Policy.CoverageAmount,
             Rate = Policy.Rate,
             InsurancePremium = Policy.InsurancePremium,
@@ -198,7 +213,17 @@
         }
     }
 
-    // Métodos para mostrar textos en español
+    // ============ MÉTODO DE CAPITALIZACIÓN (IGUAL QUE CUSTOMERFORM) ============
+
+    private string CapitalizeEachWord(string input)
+    {
+        if (string.IsNullOrEmpty(input)) return input;
+        TextInfo textInfo = new CultureInfo("es-ES", false).TextInfo;
+        return textInfo.ToTitleCase(input.ToLower());
+    }
+
+    // ============ MÉTODOS PARA MOSTRAR TEXTOS EN ESPAÑOL ============
+
     private string GetPolicyStatusText(InsurancePolicy.PolicyStatus status) => status switch
     {
         InsurancePolicy.PolicyStatus.Activa => "Activa",

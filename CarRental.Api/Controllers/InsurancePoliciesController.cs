@@ -41,7 +41,7 @@ namespace CarRental.Api.Controllers
             {
                 VehicleId = vehicleId,
                 InsurerName = policyDto.InsurerName,
-                PolicyType = policyDto.PolicyType,
+                TypePolicy = policyDto.TypePolicy,
                 CoverageAmount = policyDto.CoverageAmount,
                 Rate = policyDto.Rate,
                 NumberOfInstallments = policyDto.NumberOfInstallments,
@@ -50,6 +50,7 @@ namespace CarRental.Api.Controllers
                 InsurancePremium = policyDto.InsurancePremium,
                 MonthlyInstallment = policyDto.MonthlyInstallment,
                 Deducible = policyDto.Deducible,
+                Status = policyDto.Status,
                 AutoRenew = policyDto.AutoRenew,
                 EmergencyPhone = policyDto.EmergencyPhone,
                 AgentName = policyDto.AgentName,
@@ -76,7 +77,7 @@ namespace CarRental.Api.Controllers
 
             // Mapeamos los campos del DTO al modelo existente
             policyToUpdate.InsurerName = policyDto.InsurerName;
-            policyToUpdate.PolicyType = policyDto.PolicyType;
+            policyToUpdate.TypePolicy = policyDto.TypePolicy;
             policyToUpdate.CoverageAmount = policyDto.CoverageAmount;
             policyToUpdate.Rate = policyDto.Rate;
             policyToUpdate.NumberOfInstallments = policyDto.NumberOfInstallments;
@@ -85,6 +86,7 @@ namespace CarRental.Api.Controllers
             policyToUpdate.InsurancePremium = policyDto.InsurancePremium;
             policyToUpdate.MonthlyInstallment = policyDto.MonthlyInstallment;
             policyToUpdate.Deducible = policyDto.Deducible;
+            policyToUpdate.Status = policyDto.Status;
             policyToUpdate.AutoRenew = policyDto.AutoRenew;
             policyToUpdate.EmergencyPhone = policyDto.EmergencyPhone;
             policyToUpdate.AgentName = policyDto.AgentName;

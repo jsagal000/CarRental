@@ -4,6 +4,7 @@
 @using CarRental.Web.Services
 @using Blazored.Toast.Services
 @using System.Text.Json
+@using System.Globalization
 @inject IVehicleSubResourceApiClient<Repair, RepairForCreationDto> ApiClient
 @inject IToastService ToastService
 @inject IJSRuntime JSRuntime
@@ -32,31 +33,48 @@
         }
 
         <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+
+            <!-- ============ CAMPOS ORIGINALES ============ -->
+
             <div>
                 <label class="block text-sm font-medium text-gray-700">Fecha:</label>
                 <InputDate @bind-Value="Repair.Date" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
                 <ValidationMessage For="@(() => Repair.Date)" />
             </div>
+
             <div>
                 <label class="block text-sm font-medium text-gray-700">Costo:</label>
                 <InputNumber @bind-Value="Repair.Cost" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
                 <ValidationMessage For="@(() => Repair.Cost)" />
             </div>
+
             <div class="md:col-span-2">
                 <label class="block text-sm font-medium text-gray-700">Descripción:</label>
-                <InputTextArea @bind-Value="Repair.Description" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+                <InputTextArea @bind-Value="FormattedDescription" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 h-20" />
                 <ValidationMessage For="@(() => Repair.Description)" />
             </div>
+
             <div>
                 <label class="block text-sm font-medium text-gray-700">Taller:</label>
-                <InputText @bind-Value="Repair.WorkshopName" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
+                <InputText @bind-Value="FormattedWorkshopName" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
                 <ValidationMessage For="@(() => Repair.WorkshopName)" />
             </div>
+
             <div>
                 <label class="block text-sm font-medium text-gray-700">Kilometraje:</label>
                 <InputNumber @bind-Value="Repair.Mileage" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
                 <ValidationMessage For="@(() => Repair.Mileage)" />
             </div>
+
+            <div class="flex items-center md:col-span-2">
+                <label class="flex items-center">
+                    <InputCheckbox @bind-Value="Repair.IsWarranty" class="mr-2 h-4 w-4 text-blue-600 border-gray-300 rounded" />
+                    <span class="text-sm font-medium text-gray-700">¿Es por garantía?</span>
+                </label>
+            </div>
+
+            <!-- ============ CAMPOS NUEVOS ============ -->
+
             <div>
                 <label class="block text-sm font-medium text-gray-700">Tipo de Reparación:</label>
                 <InputSelect @bind-Value="Repair.Type" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2">
@@ -127,7 +145,7 @@
 
             <div class="md:col-span-2">
                 <label class="block text-sm font-medium text-gray-700">Notas Adicionales:</label>
-                <InputTextArea @bind-Value="Repair.Notes" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 h-20" placeholder="Detalles del incidente, observaciones del mecánico, etc." />
+                <InputTextArea @bind-Value="FormattedNotes" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2 h-20" placeholder="Detalles del incidente, observaciones del mecánico, etc." />
                 <ValidationMessage For="@(() => Repair.Notes)" />
             </div>
         </div>
@@ -145,18 +163,39 @@
 
     private ApiResponse _apiResponse;
 
+    // Propiedades formateadas con capitalización automática
+    private string FormattedDescription
+    {
+        get => Repair.Description;
+        set => Repair.Description = CapitalizeEachWord(value);
+    }
+
+    private string FormattedWorkshopName
+    {
+        get => Repair.WorkshopName;
+        set => Repair.WorkshopName = CapitalizeEachWord(value);
+    }
+
+    private string FormattedNotes
+    {
+        get => Repair.Notes;
+        set => Repair.Notes = CapitalizeEachWord(value);
+    }
+
     private async Task HandleSubmit()
     {
         if (Repair.Id == 0)
         {
             var dto = new RepairForCreationDto
             {
+                // ============ CAMPOS ORIGINALES ============
                 Date = Repair.Date,
                 Description = Repair.Description,
                 Cost = Repair.Cost,
                 WorkshopName = Repair.WorkshopName,
                 Mileage = Repair.Mileage,
                 IsWarranty = Repair.IsWarranty,
+                // ============ CAMPOS NUEVOS ============
                 Type = Repair.Type,
                 Severity = Repair.Severity,
                 IsCoveredByInsurance = Repair.IsCoveredByInsurance,
@@ -180,6 +219,14 @@
             ToastService.ShowSuccess("¡Guardado con éxito!");
             await OnSaveOrCancel.InvokeAsync();
         }
+    }
+
+    // Método para capitalizar la primera letra de cada palabra (igual que CustomerForm)
+    private string CapitalizeEachWord(string input)
+    {
+        if (string.IsNullOrEmpty(input)) return input;
+        TextInfo textInfo = new CultureInfo("es-ES", false).TextInfo;
+        return textInfo.ToTitleCase(input.ToLower());
     }
 
     // Métodos para mostrar textos en español
