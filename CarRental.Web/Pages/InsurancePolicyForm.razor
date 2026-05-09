@@ -49,11 +49,6 @@
                 </InputSelect>
                 <ValidationMessage For="@(() => Policy.TypePolicy)" />
             </div>
-@*             <div>
-                <label class="block text-sm font-medium text-gray-700">Tipo de Póliza:</label>
-                <InputText @bind-Value="FormattedPolicyType" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />
-                <ValidationMessage For="@(() => Policy.PolicyType)" />
-            </div> *@
             <div>
                 <label class="block text-sm font-medium text-gray-700">Monto de Cobertura:</label>
                 <InputNumber @bind-Value="Policy.CoverageAmount" class="mt-1 block w-full border border-gray-300 rounded-md shadow-sm p-2" />

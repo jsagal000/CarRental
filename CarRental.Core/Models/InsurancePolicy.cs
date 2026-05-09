@@ -20,9 +20,6 @@ namespace CarRental.Core.Models
         [StringLength(100)]
         public string InsurerName { get; set; }
 
-        //[Required(ErrorMessage = "El tipo de seguro es obligatorio.")]
-        //[StringLength(100)]
-        //public string PolicyType { get; set; }
 
         [Required(ErrorMessage = "El monto de cobertura es obligatorio.")]
         [Range(0.01, double.MaxValue, ErrorMessage = "El monto de cobertura debe ser mayor que cero.")]
@@ -55,8 +52,9 @@ namespace CarRental.Core.Models
         // ============ CAMPOS NUEVOS - CRÍTICOS ============
         [Required(ErrorMessage = "El estado de la poliza de seguro es obligatorio.")]
         public PolicyStatus Status { get; set; } = PolicyStatus.Activa;
+
         [Required(ErrorMessage = "El tipo de seguro es obligatorio.")]
-        public InsurancePolicyType TypePolicy { get; set; } = InsurancePolicyType.Todo_Riesgo;
+        public InsurancePolicyType TypePolicy { get; set; }
 
         [Required(ErrorMessage = "El deducible es obligatorio.")]
         [Range(0, double.MaxValue, ErrorMessage = "El deducible debe ser positivo.")]

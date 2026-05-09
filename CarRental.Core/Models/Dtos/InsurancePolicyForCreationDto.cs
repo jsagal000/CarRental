@@ -42,6 +42,7 @@ namespace CarRental.Core.Models.Dtos
         // ============ CAMPOS NUEVOS ============
         [Required(ErrorMessage = "El estado de la poliza de seguro es obligatorio.")]
         public PolicyStatus Status { get; set; }
+
         [Required(ErrorMessage = "El tipo de seguro es obligatorio.")]
         public InsurancePolicyType TypePolicy { get; set; }
 
