@@ -53,12 +53,14 @@
         {
             <div class="bg-white rounded-2xl shadow-lg overflow-hidden space-y-6">
 
-                <!-- Información de la Póliza -->
+                <!-- Información General -->
                 <div class="px-6 pt-4">
-                    <h2 class="text-xl font-semibold text-gray-800 mb-4">Información de la Póliza</h2>
+                    <h2 class="text-xl font-semibold text-gray-800 mb-4">Información General</h2>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8">
                         @DisplayItem("Aseguradora", _policy.InsurerName)
-                        @DisplayItem("Tipo de Seguro", GetPolicyTypeText(_policy.TypePolicy))
+                        @DisplayItem("Tipo de Póliza", GetPolicyTypeText(_policy.TypePolicy))
+                        @DisplayBadge("Estado", GetPolicyStatusText(_policy.Status), GetStatusColor(_policy.Status))
+                        @DisplayBadge("Renovación Automática", _policy.AutoRenew ? "Sí" : "No", _policy.AutoRenew ? "green" : "gray")
                     </div>
                 </div>
 
@@ -67,6 +69,7 @@
                     <h2 class="text-xl font-semibold text-gray-800 mb-4">Cobertura y Costos</h2>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8">
                         @DisplayItem("Monto de Cobertura", _policy.CoverageAmount.ToString("C"))
+                        @DisplayItem("Deducible", _policy.Deducible.ToString("C"))
                         @DisplayItem("Tasa", _policy.Rate.ToString("P2"))
                         @DisplayItem("Prima de Seguro", _policy.InsurancePremium.ToString("C"))
                     </div>
@@ -93,9 +96,31 @@
                             var statusColor = daysRemaining > 30 ? "green" : daysRemaining > 0 ? "yellow" : "red";
                         }
                         @DisplayBadge("Estado de Vigencia", status, statusColor)
-                        @DisplayItem("Estado", GetPolicyStatusText(_policy.Status))
+                        @DisplayItem("Días Restantes", daysRemaining > 0 ? $"{daysRemaining} días" : "Vencida")
                     </div>
                 </div>
+
+                <!-- Información de Contacto -->
+                @if (!string.IsNullOrEmpty(_policy.EmergencyPhone) || !string.IsNullOrEmpty(_policy.AgentName) || !string.IsNullOrEmpty(_policy.AgentPhone))
+                {
+                    <div class="px-6">
+                        <h2 class="text-xl font-semibold text-gray-800 mb-4">Información de Contacto</h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8">
+                            @if (!string.IsNullOrEmpty(_policy.EmergencyPhone))
+                            {
+                                @DisplayItem("Teléfono de Emergencia", _policy.EmergencyPhone)
+                            }
+                            @if (!string.IsNullOrEmpty(_policy.AgentName))
+                            {
+                                @DisplayItem("Agente de Seguros", _policy.AgentName)
+                            }
+                            @if (!string.IsNullOrEmpty(_policy.AgentPhone))
+                            {
+                                @DisplayItem("Teléfono del Agente", _policy.AgentPhone)
+                            }
+                        </div>
+                    </div>
+                }
 
                 <!-- Información del Vehículo -->
                 @if (_vehicle != null)
@@ -235,6 +260,16 @@
         InsurancePolicy.PolicyStatus.Suspendida => "Suspendida",
         InsurancePolicy.PolicyStatus.Renovacion_Pendiente => "Renovación Pendiente",
         _ => status.ToString()
+    };
+
+    private string GetStatusColor(InsurancePolicy.PolicyStatus status) => status switch
+    {
+        InsurancePolicy.PolicyStatus.Activa => "green",
+        InsurancePolicy.PolicyStatus.Vencida => "red",
+        InsurancePolicy.PolicyStatus.Cancelada => "red",
+        InsurancePolicy.PolicyStatus.Suspendida => "yellow",
+        InsurancePolicy.PolicyStatus.Renovacion_Pendiente => "blue",
+        _ => "gray"
     };
 
     private string GetPolicyTypeText(InsurancePolicy.InsurancePolicyType type) => type switch

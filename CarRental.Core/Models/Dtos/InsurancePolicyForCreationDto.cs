@@ -11,10 +11,6 @@ namespace CarRental.Core.Models.Dtos
         [StringLength(100)]
         public string InsurerName { get; set; }
 
-        [Required(ErrorMessage = "El tipo de seguro es obligatorio.")]
-        [StringLength(100)]
-        public string PolicyType { get; set; }
-
         [Required(ErrorMessage = "El monto de cobertura es obligatorio.")]
         [Range(0.01, double.MaxValue, ErrorMessage = "El monto de cobertura debe ser mayor que cero.")]
         public decimal CoverageAmount { get; set; }
@@ -47,7 +43,7 @@ namespace CarRental.Core.Models.Dtos
         public InsurancePolicyType TypePolicy { get; set; }
 
         [Required(ErrorMessage = "El deducible es obligatorio.")]
-        [Range(0, double.MaxValue, ErrorMessage = "El deducible debe ser positivo.")]
+        [Range(0.00, double.MaxValue, ErrorMessage = "El deducible debe ser positivo.")]
         public decimal Deducible { get; set; }
 
         public bool AutoRenew { get; set; } = false;

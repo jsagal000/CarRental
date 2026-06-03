@@ -35,18 +35,6 @@ namespace CarRental.Api.Controllers
             {
                 var partners = await _context.Partners.ToListAsync();
 
-                // NOTA: Ya no se auditan las consultas (View) según las mejores prácticas
-                /*
-                await _auditService.LogActionAsync(
-                    userId: userId,
-                    module: "Partner",
-                    action: "View",
-                    description: $"Consultó lista de socios ({partners.Count} registros)",
-                    ipAddress: HttpContext.GetClientIpAddress(),
-                    userAgent: HttpContext.GetUserAgent()
-                );
-                */
-
                 return partners;
             }
             catch (Exception ex)
@@ -92,20 +80,6 @@ namespace CarRental.Api.Controllers
                     return NotFound();
                 }
 
-                // NOTA: Consulta exitosa - No se audita según mejores prácticas
-                /*
-                await _auditService.LogActionAsync(
-                    userId: userId,
-                    module: "Partner",
-                    action: "View",
-                    entityId: partner.Id,
-                    entityName: $"{partner.FirstName} {partner.LastName}",
-                    description: $"Consultó detalles del socio {partner.FirstName} {partner.LastName}",
-                    ipAddress: HttpContext.GetClientIpAddress(),
-                    userAgent: HttpContext.GetUserAgent()
-                );
-                */
-
                 return partner;
             }
             catch (Exception ex)
@@ -138,6 +112,7 @@ namespace CarRental.Api.Controllers
                 {
                     FirstName = dto.FirstName,
                     LastName = dto.LastName,
+                    Nationality = dto.Nationality,
                     TypeOfDocument = dto.TypeOfDocument,
                     DocumentNumber = dto.DocumentNumber,
                     Email = dto.Email,
@@ -168,6 +143,7 @@ namespace CarRental.Api.Controllers
                         partner.Id,
                         partner.FirstName,
                         partner.LastName,
+                        partner.Nationality,
                         partner.TypeOfDocument,
                         partner.DocumentNumber,
                         partner.Email,
@@ -252,6 +228,7 @@ namespace CarRental.Api.Controllers
                 {
                     existing.FirstName,
                     existing.LastName,
+                    existing.Nationality,
                     existing.TypeOfDocument,
                     existing.DocumentNumber,
                     existing.Email,
@@ -268,6 +245,7 @@ namespace CarRental.Api.Controllers
                 // Actualizar campos
                 existing.FirstName = partner.FirstName;
                 existing.LastName = partner.LastName;
+                existing.Nationality = partner.Nationality;
                 existing.TypeOfDocument = partner.TypeOfDocument;
                 existing.DocumentNumber = partner.DocumentNumber;
                 existing.Email = partner.Email;
@@ -286,6 +264,7 @@ namespace CarRental.Api.Controllers
                 {
                     existing.FirstName,
                     existing.LastName,
+                    existing.Nationality,
                     existing.TypeOfDocument,
                     existing.DocumentNumber,
                     existing.Email,
@@ -365,6 +344,7 @@ namespace CarRental.Api.Controllers
                     partner.Id,
                     partner.FirstName,
                     partner.LastName,
+                    partner.Nationality,
                     partner.TypeOfDocument,
                     partner.DocumentNumber,
                     partner.Email,

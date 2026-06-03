@@ -55,11 +55,19 @@ else
 {
     <div class="min-h-screen bg-gray-100 p-4 font-sans flex flex-col items-center">
         <div class="w-full max-w-2xl bg-white p-6 rounded-lg shadow-md">
-
-            <h3 class="text-3xl font-bold text-center text-gray-800 mb-6">
-                @(_isEditMode ? "Editar Vehículo" : "Agregar Nuevo Vehículo")
-            </h3>
-
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-3xl font-bold text-gray-800">
+                    @(_isEditMode ? "Editar Vehículo" : "Agregar Nuevo Vehículo")
+                </h3>
+                @if (!_isEditMode)
+                {
+                    <button type="button"
+                            @onclick="ClearForm"
+                            class="text-blue-600 hover:text-blue-800 underline text-sm font-medium">
+                        Limpiar formulario
+                    </button>
+                }
+            </div>
             <EditForm Model="@_vehicle" OnValidSubmit="HandleSubmit">
                 <DataAnnotationsValidator />
 
@@ -521,6 +529,21 @@ else
     private void GoBackToList()
     {
         NavigationManager.NavigateTo("/vehicles");
+    }
+
+    private void ClearForm()
+    {
+        // Limpiar el objeto customer
+        _vehicle = new Vehicle();
+
+        // Limpiar respuestas
+        _createResponse = null;
+
+        // Forzar actualización de la UI
+        StateHasChanged();
+
+        // Mostrar mensaje de confirmación (opcional)
+        ToastService.ShowInfo("Formulario limpiado");
     }
 
     private void OnVinInput(ChangeEventArgs e)

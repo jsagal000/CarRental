@@ -35,19 +35,6 @@ namespace CarRental.Api.Controllers
             {
                 var customers = await _context.Customers.ToListAsync();
 
-                // NOTA: Ya no se auditan las consultas (View) según las mejores prácticas
-                // Este código está comentado pero lo dejo por si necesitas habilitarlo temporalmente
-                /*
-                await _auditService.LogActionAsync(
-                    userId: userId,
-                    module: "Customer",
-                    action: "View",
-                    description: $"Consultó lista de clientes ({customers.Count} registros)",
-                    ipAddress: HttpContext.GetClientIpAddress(),
-                    userAgent: HttpContext.GetUserAgent()
-                );
-                */
-
                 return customers;
             }
             catch (Exception ex)
@@ -93,20 +80,6 @@ namespace CarRental.Api.Controllers
                     return NotFound();
                 }
 
-                // NOTA: Consulta exitosa - No se audita según mejores prácticas
-                /*
-                await _auditService.LogActionAsync(
-                    userId: userId,
-                    module: "Customer",
-                    action: "View",
-                    entityId: customer.Id,
-                    entityName: $"{customer.FirstName} {customer.LastName}",
-                    description: $"Consultó detalles del cliente {customer.FirstName} {customer.LastName}",
-                    ipAddress: HttpContext.GetClientIpAddress(),
-                    userAgent: HttpContext.GetUserAgent()
-                );
-                */
-
                 return customer;
             }
             catch (Exception ex)
@@ -139,6 +112,7 @@ namespace CarRental.Api.Controllers
                 {
                     FirstName = dto.FirstName,
                     LastName = dto.LastName,
+                    Nationality = dto.Nationality,
                     Email = dto.Email,
                     PhoneNumber = dto.PhoneNumber,
                     TypeOfDocument = dto.TypeOfDocument,
@@ -167,6 +141,7 @@ namespace CarRental.Api.Controllers
                         customer.Id,
                         customer.FirstName,
                         customer.LastName,
+                        customer.Nationality,
                         customer.Email,
                         customer.PhoneNumber,
                         customer.TypeOfDocument,
@@ -249,6 +224,7 @@ namespace CarRental.Api.Controllers
                 {
                     existing.FirstName,
                     existing.LastName,
+                    existing.Nationality,
                     existing.Email,
                     existing.PhoneNumber,
                     existing.TypeOfDocument,
@@ -263,6 +239,7 @@ namespace CarRental.Api.Controllers
                 // Actualizar campos
                 existing.FirstName = customer.FirstName;
                 existing.LastName = customer.LastName;
+                existing.Nationality = customer.Nationality;
                 existing.Email = customer.Email;
                 existing.PhoneNumber = customer.PhoneNumber;
                 existing.TypeOfDocument = customer.TypeOfDocument;
@@ -279,6 +256,7 @@ namespace CarRental.Api.Controllers
                 {
                     existing.FirstName,
                     existing.LastName,
+                    existing.Nationality,
                     existing.Email,
                     existing.PhoneNumber,
                     existing.TypeOfDocument,
@@ -356,6 +334,7 @@ namespace CarRental.Api.Controllers
                     customer.Id,
                     customer.FirstName,
                     customer.LastName,
+                    customer.Nationality,
                     customer.Email,
                     customer.PhoneNumber,
                     customer.TypeOfDocument,

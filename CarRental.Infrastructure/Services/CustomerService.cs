@@ -43,6 +43,7 @@ namespace CarRental.Infrastructure.Services
 
             existingCustomer.FirstName = customer.FirstName;
             existingCustomer.LastName = customer.LastName;
+            existingCustomer.Nationality = customer.Nationality;
             existingCustomer.Email = customer.Email;
             existingCustomer.PhoneNumber = customer.PhoneNumber;
             // Propiedades eliminadas: LicenseNumber, PostalCode

@@ -62,11 +62,19 @@ else
 {
     <div class="min-h-screen bg-gray-100 p-4 font-sans flex flex-col items-center">
         <div class="w-full max-w-2xl bg-white p-6 rounded-lg shadow-md">
-
-            <h3 class="text-3xl font-bold text-center text-gray-800 mb-6">
-                @(_isEditMode ? "Editar Socio" : "Agregar Nuevo Socio")
-            </h3>
-
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-3xl font-bold text-gray-800">
+                    @(_isEditMode ? "Editar Socio" : "Agregar Nuevo Socio")
+                </h3>
+                @if (!_isEditMode)
+                {
+                    <button type="button"
+                        @onclick="ClearForm"
+                        class="text-blue-600 hover:text-blue-800 underline text-sm font-medium">
+                        Limpiar formulario
+                    </button>
+                }
+            </div>
             <EditForm Model="@_partner" OnValidSubmit="HandleSubmit">
                 <DataAnnotationsValidator />
 
@@ -88,6 +96,13 @@ else
                         <label for="lastName" class="block text-sm font-medium text-gray-700 mb-1">Apellidos:</label>
                         <InputText class="w-full p-3 border rounded" @bind-Value="FormattedLastName" />
                         <ValidationMessage For="@(() => _partner.LastName)" class="text-red-500 text-xs mt-1" />
+                    </div>
+                    <div class="form-group">
+                        <label for="nationality" class="block text-sm font-medium text-gray-700 mb-1">Nacionalidad:</label>
+                        <InputText class="w-full p-3 border rounded"
+                                   @bind-Value="FormattedNationality"
+                                   placeholder="Ej: Ecuatoriana, Colombiana" />
+                        <ValidationMessage For="@(() => _partner.Nationality)" class="text-red-500 text-xs mt-1" />
                     </div>
                     <!-- TIPO DE DOCUMENTO -->
                     <div class="form-group">
@@ -176,6 +191,10 @@ else
                         <InputText class="w-full p-3 border rounded" @bind-Value="FormattedAddress" />
                         <ValidationMessage For="@(() => _partner.Address)" class="text-red-500 text-xs mt-1" />
                     </div>
+                </div>
+
+                <h4 class="text-2xl font-bold text-gray-800 mt-8 mb-4">Información Cuenta Bancaria</h4>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                     <div class="form-group">
                         <label for="bank" class="block text-sm font-medium text-gray-700 mb-1">Banco:</label>
                         <InputText class="w-full p-3 border rounded" @bind-Value="FormattedBank" />
@@ -191,7 +210,7 @@ else
                         </InputSelect>
                         <ValidationMessage For="@(() => _partner.TypeOfAccount)" class="text-red-500 text-xs mt-1" />
                     </div>
-                    <div class="form-group md:col-span-2">
+                    <div class="form-group">
                         <label for="accountNumber" class="block text-sm font-medium text-gray-700 mb-1">Número de Cuenta:</label>
                         <InputText class="w-full p-3 border rounded" @bind-Value="_partner.AccountNumber" />
                         <ValidationMessage For="@(() => _partner.AccountNumber)" class="text-red-500 text-xs mt-1" />
@@ -238,6 +257,12 @@ else
     {
         get => _partner.LastName;
         set => _partner.LastName = CapitalizeEachWord(value);
+    }
+
+    private string FormattedNationality
+    {
+        get => _partner.Nationality;
+        set => _partner.Nationality = CapitalizeEachWord(value);
     }
 
     private string FormattedAddress
@@ -347,6 +372,7 @@ else
             {
                 FirstName = _partner.FirstName,
                 LastName = _partner.LastName,
+                Nationality = _partner.Nationality,
                 TypeOfDocument = _partner.TypeOfDocument,
                 DocumentNumber = _partner.DocumentNumber,
                 Email = _partner.Email,
@@ -385,6 +411,25 @@ else
         NavigationManager.NavigateTo("/partners");
     }
 
+    private void ClearForm()
+    {
+        // Limpiar el objeto customer
+        _partner = new Partner();
+
+        // Limpiar mensajes de error
+        documentNumberErrorMessage = "";
+        phoneNumberErrorMessage = "";
+
+
+        // Limpiar respuestas
+        _createResponse = null;
+
+        // Forzar actualización de la UI
+        StateHasChanged();
+
+        // Mostrar mensaje de confirmación (opcional)
+        ToastService.ShowInfo("Formulario limpiado");
+    }
     // ============================================================================
     // MÉTODOS PARA VALIDACIÓN DE NÚMERO DE DOCUMENTO
     // ============================================================================

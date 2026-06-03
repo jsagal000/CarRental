@@ -55,6 +55,9 @@ namespace CarRental.Core.Models
         [StringLength(100, ErrorMessage = "El país no puede exceder los 100 caracteres.")]
         public string Country { get; set; }
 
+        [StringLength(100, ErrorMessage = "La nacionalidad no puede exceder los 100 caracteres.")]
+        public string Nationality { get; set; }
+
         // Optional: Registration Date
         public DateTime RegistrationDate { get; set; } = DateTime.UtcNow; // Automatically set to current UTC time
 

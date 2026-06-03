@@ -96,6 +96,7 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-8">
                         @DisplayItem("Nombres", customer.FirstName)
                         @DisplayItem("Apellidos", customer.LastName)
+                        @DisplayItem("Nacionalidad", customer.Nationality)
                         @DisplayItem("Tipo de Documento", GetDocumentTypeDisplay(customer.TypeOfDocument))
                         @DisplayItem("Número de Documento", customer.DocumentNumber)
                         @DisplayItem("Fecha de Nacimiento", FormatDate(customer.DateOfBirth))

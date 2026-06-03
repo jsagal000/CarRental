@@ -43,6 +43,7 @@ namespace CarRental.Infrastructure.Services
 
             existingPartner.FirstName = partner.FirstName;
             existingPartner.LastName = partner.LastName;
+            existingPartner.Nationality = partner.Nationality;
             existingPartner.TypeOfDocument = partner.TypeOfDocument;
             existingPartner.DocumentNumber = partner.DocumentNumber;
             existingPartner.Email = partner.Email;

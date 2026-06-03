@@ -9,9 +9,19 @@
 @inject IToastService ToastService
 @inject IJSRuntime JSRuntime
 
-<div class="p-4">
-    <h3 class="text-2xl font-bold text-gray-800 mb-6">@(Repair.Id == 0 ? "Añadir Nueva Reparación" : "Editar Reparación")</h3>
-
+<div class="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 p-4 font-sans flex flex-col items-center">
+    <div class="w-full max-w-2xl bg-white p-6 rounded-lg shadow-md">
+    <div class="flex justify-between items-center mb-6">
+        <h3 class="text-2xl font-bold text-gray-800">@(Repair.Id == 0 ? "Añadir Nueva Reparación" : "Editar Reparación")</h3>
+        @if (Repair.Id == 0)
+        {
+            <button type="button"
+                    @onclick="ClearForm"
+                    class="text-blue-600 hover:text-blue-800 underline text-sm font-medium transition-colors duration-200">
+                Limpiar formulario
+            </button>
+        }
+    </div>
     <EditForm Model="Repair" OnValidSubmit="HandleSubmit">
         <DataAnnotationsValidator />
 
@@ -156,6 +166,7 @@
         </div>
     </EditForm>
 </div>
+</div>
 
 @code {
     [Parameter] public Repair Repair { get; set; }
@@ -219,6 +230,31 @@
             ToastService.ShowSuccess("¡Guardado con éxito!");
             await OnSaveOrCancel.InvokeAsync();
         }
+    }
+
+    private void ClearForm()
+    {
+        // Guardar VehicleId porque lo necesitamos mantener
+        var vehicleId = Repair.VehicleId;
+
+        // Crear nuevo objeto Repair con valores por defecto
+        Repair = new Repair
+        {
+            VehicleId = vehicleId,
+            Date = DateTime.Now,
+            Type = Repair.RepairType.Otros,
+            Severity = Repair.RepairSeverity.Menor,
+            Status = Repair.RepairStatus.Pendiente
+        };
+
+        // Limpiar respuesta de error si existe
+        _apiResponse = null;
+
+        // Forzar actualización de la UI
+        StateHasChanged();
+
+        // Mostrar mensaje de confirmación
+        ToastService.ShowInfo("Formulario limpiado");
     }
 
     // Método para capitalizar la primera letra de cada palabra (igual que CustomerForm)

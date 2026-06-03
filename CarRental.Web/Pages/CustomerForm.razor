@@ -7,6 +7,7 @@
 @using Blazored.Toast.Services
 @using Microsoft.AspNetCore.Components.Forms
 @using System.Globalization
+@using Microsoft.AspNetCore.Components.Web
 
 @inject CarRental.Web.Services.CustomerApiClient CustomerApiClient
 @inject CarRental.Web.Services.PermissionApiClient PermissionApiClient
@@ -62,10 +63,19 @@ else
 {
     <div class="min-h-screen bg-gray-100 p-4 font-sans flex flex-col items-center">
         <div class="w-full max-w-2xl bg-white p-6 rounded-lg shadow-md">
-            <h3 class="text-3xl font-bold text-center text-gray-800 mb-6">
-                @(_isEditMode ? "Editar Cliente" : "Agregar Nuevo Cliente")
-            </h3>
-
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-3xl font-bold text-gray-800">
+                    @(_isEditMode ? "Editar Cliente" : "Agregar Nuevo Cliente")
+                </h3>
+                @if (!_isEditMode)
+                {
+                    <button type="button"
+                        @onclick="ClearForm"
+                        class="text-blue-600 hover:text-blue-800 underline text-sm font-medium">
+                        Limpiar formulario
+                    </button>
+                }
+            </div>
             <EditForm Model="@_customer" OnValidSubmit="HandleSubmit">
                 <DataAnnotationsValidator />
 
@@ -89,6 +99,15 @@ else
                         <ValidationMessage For="@(() => _customer.LastName)" class="text-red-500 text-xs mt-1" />
                     </div>
                     <div class="form-group">
+                        <label for="nationality" class="block text-sm font-medium text-gray-700 mb-1">
+                            Nacionalidad:
+                        </label>
+                        <InputText class="w-full p-3 border rounded"
+                                   @bind-Value="FormattedNationality"
+                                   placeholder="Ej: Ecuatoriana, Colombiana" />
+                        <ValidationMessage For="@(() => _customer.Nationality)" class="text-red-500 text-xs mt-1" />
+                    </div>
+                    <div class="form-group">
                         <label for="typeOfDocument" class="block text-sm font-medium text-gray-700 mb-1">Tipo de Documento:</label>
                         <InputSelect class="w-full p-3 border rounded"
                                      @bind-Value="_customer.TypeOfDocument"
@@ -109,6 +128,7 @@ else
                                class="@($"w-full p-3 border rounded {GetDocumentNumberBorderClass()}")"
                                value="@_customer.DocumentNumber"
                                @oninput="OnDocumentNumberInput"
+                               maxlength="@GetDocumentNumberMaxLength()"
                                placeholder="@GetDocumentNumberPlaceholder()"
                                style="text-transform: uppercase;" />
                         <div class="flex justify-between items-center mt-1">
@@ -153,7 +173,8 @@ else
                                class="@($"w-full p-3 border rounded {GetPhoneBorderClass()}")"
                                value="@_customer.PhoneNumber"
                                @oninput="OnPhoneNumberInput"
-                               placeholder="+593 99 123 4567" />
+                               maxlength="@GetPhoneNumberMaxLength()"
+                               placeholder="@GetPhonePlaceholder()" />
                         <div class="flex justify-between items-center mt-1">
                             <div class="flex-1">
                                 <ValidationMessage For="@(() => _customer.PhoneNumber)" class="text-red-500 text-xs" />
@@ -290,6 +311,22 @@ else
         set => _customer.LastName = CapitalizeEachWord(value);
     }
 
+    private string FormattedNationality
+    {
+        get => _customer.Nationality;
+        set => _customer.Nationality = CapitalizeEachWord(value);
+    }
+
+    /// Verifica si el cliente es de nacionalidad ecuatoriana
+    private bool IsEcuadorian()
+    {
+        if (string.IsNullOrWhiteSpace(_customer.Nationality))
+            return false;
+
+        var nationality = _customer.Nationality.Trim().ToLower();
+        return nationality == "ecuatoriana" || nationality == "ecuatoriano";
+    }
+
     private string FormattedAddress
     {
         get => _customer.Address;
@@ -351,6 +388,7 @@ else
             {
                 FirstName = _customer.FirstName,
                 LastName = _customer.LastName,
+                Nationality = _customer.Nationality,
                 TypeOfDocument = _customer.TypeOfDocument,
                 DocumentNumber = _customer.DocumentNumber,
                 DateOfBirth = _customer.DateOfBirth,
@@ -387,6 +425,25 @@ else
         NavigationManager.NavigateTo("/customers");
     }
 
+    private void ClearForm()
+    {
+        // Limpiar el objeto customer
+        _customer = new Customer();
+
+        // Limpiar mensajes de error
+        documentNumberErrorMessage = "";
+        phoneNumberErrorMessage = "";
+        duplicateCustomerMessage = "";
+
+        // Limpiar respuestas
+        _createResponse = null;
+
+        // Forzar actualización de la UI
+        StateHasChanged();
+
+        // Mostrar mensaje de confirmación (opcional)
+        ToastService.ShowInfo("Formulario limpiado");
+    }
     // ============================================================================
     // MÉTODOS PARA VALIDACIÓN DE NÚMERO DE DOCUMENTO
     // ============================================================================
@@ -441,61 +498,73 @@ else
     }
 
     /// Maneja el input del número de documento según el tipo
-    private async void OnDocumentNumberInput(ChangeEventArgs e)
+    private async Task OnDocumentNumberInput(ChangeEventArgs e)
     {
-        var value = e.Value?.ToString() ?? "";
-        var cleaned = "";
-        var hasInvalidChars = false;
+        var value = e.Value?.ToString()?.ToUpper() ?? "";
 
-        if (_customer.TypeOfDocument == Customer.DocumentType.Cédula ||
-            _customer.TypeOfDocument == Customer.DocumentType.RUC)
+        // Limpiar según tipo de documento
+        if (_customer.TypeOfDocument == Customer.DocumentType.Pasaporte)
         {
-            cleaned = new string(value.Where(c => char.IsDigit(c)).ToArray());
-            hasInvalidChars = value.Any(c => !char.IsDigit(c));
-
-            if (hasInvalidChars)
-            {
-                ShowDocumentError("⚠ Cédula/RUC: solo se permiten números");
-            }
-            else
-            {
-                documentNumberErrorMessage = "";
-            }
-        }
-        else if (_customer.TypeOfDocument == Customer.DocumentType.Pasaporte)
-        {
-            cleaned = new string(value.Where(c => char.IsLetterOrDigit(c)).ToArray()).ToUpper();
-            hasInvalidChars = value.Any(c => !char.IsLetterOrDigit(c));
-
-            if (hasInvalidChars)
-            {
-                ShowDocumentError("⚠ Pasaporte: no se permiten caracteres especiales");
-            }
-            else
-            {
-                documentNumberErrorMessage = "";
-            }
+            // Pasaporte: alfanumérico
+            var cleaned = new string(value.Where(c => char.IsLetterOrDigit(c)).ToArray());
+            _customer.DocumentNumber = cleaned;
         }
         else
         {
-            cleaned = new string(value.Where(c => char.IsLetterOrDigit(c)).ToArray()).ToUpper();
-            hasInvalidChars = value.Any(c => !char.IsLetterOrDigit(c));
+            // Cédula y RUC: solo números
+            var cleaned = new string(value.Where(char.IsDigit).ToArray());
 
-            if (hasInvalidChars)
+            // ============ VALIDACIÓN PARA ECUATORIANOS ============
+            if (IsEcuadorian())
             {
-                ShowDocumentError("⚠ No se permiten caracteres especiales");
+                if (_customer.TypeOfDocument == Customer.DocumentType.Cédula)
+                {
+                    // El maxlength ya limita a 10, solo validar si está completo
+                    if (!string.IsNullOrEmpty(cleaned) && cleaned.Length < 10)
+                    {
+                        ShowDocumentError($"⚠ Cédula debe tener 10 dígitos (actual: {cleaned.Length})");
+                    }
+                    else if (cleaned.Length == 10)
+                    {
+                        documentNumberErrorMessage = "";
+                    }
+                }
+                else if (_customer.TypeOfDocument == Customer.DocumentType.RUC)
+                {
+                    // El maxlength ya limita a 13, solo validar si está completo
+                    if (!string.IsNullOrEmpty(cleaned) && cleaned.Length < 13)
+                    {
+                        ShowDocumentError($"⚠ RUC debe tener 13 dígitos (actual: {cleaned.Length})");
+                    }
+                    else if (cleaned.Length == 13)
+                    {
+                        documentNumberErrorMessage = "";
+                    }
+                }
             }
             else
             {
                 documentNumberErrorMessage = "";
             }
+
+            _customer.DocumentNumber = cleaned;
         }
 
-        _customer.DocumentNumber = cleaned;
-        StateHasChanged();
+        // Verificar duplicados solo si el documento está completo
+        bool shouldCheckDuplicate = false;
 
-        // ✅ VERIFICAR DUPLICADO después de filtrar
-        if (!string.IsNullOrEmpty(cleaned) && cleaned.Length >= 5)
+        if (IsEcuadorian())
+        {
+            shouldCheckDuplicate = (_customer.TypeOfDocument == Customer.DocumentType.Cédula && _customer.DocumentNumber?.Length == 10) ||
+                                 (_customer.TypeOfDocument == Customer.DocumentType.RUC && _customer.DocumentNumber?.Length == 13) ||
+                                 (_customer.TypeOfDocument == Customer.DocumentType.Pasaporte && !string.IsNullOrEmpty(_customer.DocumentNumber) && _customer.DocumentNumber.Length >= 5);
+        }
+        else
+        {
+            shouldCheckDuplicate = !string.IsNullOrEmpty(_customer.DocumentNumber) && _customer.DocumentNumber.Length >= 5;
+        }
+
+        if (shouldCheckDuplicate && !_isEditMode)
         {
             await CheckDuplicateCustomer();
         }
@@ -503,7 +572,11 @@ else
         {
             duplicateCustomerMessage = "";
         }
+
+        StateHasChanged();
     }
+
+
 
     /// Muestra mensaje de error temporal para documento
     private void ShowDocumentError(string message)
@@ -524,14 +597,46 @@ else
     /// Obtiene el placeholder según el tipo de documento
     private string GetDocumentNumberPlaceholder()
     {
-        return _customer.TypeOfDocument switch
+        if (IsEcuadorian())
         {
-            Customer.DocumentType.Cédula => "Ej: 1234567890",
-            Customer.DocumentType.RUC => "Ej: 1234567890001",
-            Customer.DocumentType.Pasaporte => "Ej: AB123456",
-            _ => "Número de documento"
-        };
+            return _customer.TypeOfDocument switch
+            {
+                Customer.DocumentType.Cédula => "10 dígitos (Ej: 1234567890)",
+                Customer.DocumentType.RUC => "13 dígitos (Ej: 1234567890001)",
+                Customer.DocumentType.Pasaporte => "Ej: AB123456",
+                _ => "Número de documento"
+            };
+        }
+        else
+        {
+            return _customer.TypeOfDocument switch
+            {
+                Customer.DocumentType.Cédula => "Ej: 1234567890",
+                Customer.DocumentType.RUC => "Ej: 1234567890001",
+                Customer.DocumentType.Pasaporte => "Ej: AB123456",
+                _ => "Número de documento"
+            };
+        }
     }
+
+    private int GetDocumentNumberMaxLength()
+    {
+        if (IsEcuadorian())
+        {
+            return _customer.TypeOfDocument switch
+            {
+                Customer.DocumentType.Cédula => 10,   // Máximo 10 dígitos
+                Customer.DocumentType.RUC => 13,      // Máximo 13 dígitos
+                Customer.DocumentType.Pasaporte => 20, // Pasaportes varían
+                _ => 50
+            };
+        }
+        else
+        {
+            // Para extranjeros: sin límite estricto
+            return 50;
+        }
+    } 
 
     /// Obtiene el mensaje de validación para el número de documento
     private string GetDocumentNumberMessage()
@@ -539,13 +644,26 @@ else
         if (string.IsNullOrEmpty(_customer.DocumentNumber))
             return "";
 
-        return _customer.TypeOfDocument switch
+        if (IsEcuadorian())
         {
-            Customer.DocumentType.Cédula => "✓ Solo números",
-            Customer.DocumentType.RUC => "✓ Solo números",
-            Customer.DocumentType.Pasaporte => "✓ Alfanumérico",
-            _ => "✓"
-        };
+            return _customer.TypeOfDocument switch
+            {
+                Customer.DocumentType.Cédula => _customer.DocumentNumber.Length == 10 ? "✓ 10 dígitos" : $"⚠ {10 - _customer.DocumentNumber.Length} faltan",
+                Customer.DocumentType.RUC => _customer.DocumentNumber.Length == 13 ? "✓ 13 dígitos" : $"⚠ {13 - _customer.DocumentNumber.Length} faltan",
+                Customer.DocumentType.Pasaporte => "✓ Alfanumérico",
+                _ => "✓"
+            };
+        }
+        else
+        {
+            return _customer.TypeOfDocument switch
+            {
+                Customer.DocumentType.Cédula => "✓ Solo números",
+                Customer.DocumentType.RUC => "✓ Solo números",
+                Customer.DocumentType.Pasaporte => "✓ Alfanumérico",
+                _ => "✓"
+            };
+        }
     }
 
     /// Obtiene la clase CSS para el mensaje de documento
@@ -572,6 +690,16 @@ else
         if (string.IsNullOrEmpty(_customer.DocumentNumber))
             return "border-gray-300 focus:border-blue-500";
 
+        // Para ecuatorianos: verificar longitud exacta
+        if (IsEcuadorian())
+        {
+            bool isValid = (_customer.TypeOfDocument == Customer.DocumentType.Cédula && _customer.DocumentNumber.Length == 10) ||
+                          (_customer.TypeOfDocument == Customer.DocumentType.RUC && _customer.DocumentNumber.Length == 13) ||
+                          (_customer.TypeOfDocument == Customer.DocumentType.Pasaporte);
+
+            return isValid ? "border-green-500 focus:border-green-600" : "border-yellow-500 focus:border-yellow-600";
+        }
+
         return "border-green-500 focus:border-green-600";
     }
 
@@ -586,42 +714,39 @@ else
     {
         var value = e.Value?.ToString() ?? "";
 
-        // Verificar si hay caracteres inválidos (ni números ni +)
-        var hasInvalidChars = value.Any(c => !char.IsDigit(c) && c != '+');
-
-        // Permitir solo números y el signo +
+        // Permitir solo números y + (para extranjeros)
         var cleaned = new string(value.Where(c => char.IsDigit(c) || c == '+').ToArray());
 
-        // El + solo puede estar al inicio
-        if (cleaned.Contains('+'))
+        // ============ VALIDACIÓN PARA ECUATORIANOS ============
+        if (IsEcuadorian())
         {
-            // Remover todos los +
-            var withoutPlus = cleaned.Replace("+", "");
-
-            // Agregar + solo al inicio si el valor original empezaba con +
-            if (value.TrimStart().StartsWith("+"))
+            // Eliminar + si lo tiene (no permitido para ecuatorianos)
+            if (cleaned.StartsWith("+"))
             {
-                cleaned = "+" + withoutPlus;
+                ShowPhoneError("⚠ Teléfonos ecuatorianos no usan código de país (+)");
+                cleaned = cleaned.Replace("+", "");
             }
-            else
-            {
-                cleaned = withoutPlus;
-            }
-        }
 
-        // Mostrar mensaje de error si había caracteres inválidos
-        if (hasInvalidChars)
-        {
-            ShowPhoneError("⚠ Solo se permiten números y el signo +");
+            // El maxlength ya limita a 10, solo validar si está completo
+            if (!string.IsNullOrEmpty(cleaned) && cleaned.Length < 10)
+            {
+                ShowPhoneError($"⚠ Teléfono debe tener 10 dígitos (actual: {cleaned.Length})");
+            }
+            else if (cleaned.Length == 10)
+            {
+                phoneNumberErrorMessage = "";
+            }
         }
         else
         {
+            // Para extranjeros: validación flexible
             phoneNumberErrorMessage = "";
         }
 
         _customer.PhoneNumber = cleaned;
         StateHasChanged();
     }
+
 
     /// Muestra mensaje de error temporal para teléfono
     private void ShowPhoneError(string message)
@@ -645,10 +770,46 @@ else
         if (string.IsNullOrEmpty(_customer.PhoneNumber))
             return "";
 
-        if (_customer.PhoneNumber.StartsWith("+"))
-            return "✓ Internacional";
+        if (IsEcuadorian())
+        {
+            if (_customer.PhoneNumber.Length == 10)
+                return "✓ 10 dígitos";
+            else if (_customer.PhoneNumber.Length < 10)
+                return $"⚠ {10 - _customer.PhoneNumber.Length} faltan";
+            else
+                return "⚠ Máximo 10";
+        }
         else
-            return "✓ Nacional";
+        {
+            if (_customer.PhoneNumber.StartsWith("+"))
+                return "✓ Internacional";
+            else
+                return "✓ Nacional";
+        }
+    }
+
+    private string GetPhonePlaceholder()
+    {
+        if (IsEcuadorian())
+        {
+            return "10 dígitos (Ej: 0991234567)";
+        }
+        else
+        {
+            return "+593 99 123 4567";
+        }
+    }
+
+    private int GetPhoneNumberMaxLength()
+    {
+        if (IsEcuadorian())
+        {
+            return 10; // Máximo 10 dígitos para ecuatorianos
+        }
+        else
+        {
+            return 20; // Para extranjeros con código internacional
+        }
     }
 
     /// Obtiene la clase CSS para el mensaje de teléfono
@@ -671,6 +832,15 @@ else
 
         if (string.IsNullOrEmpty(_customer.PhoneNumber))
             return "border-gray-300 focus:border-blue-500";
+
+        // Para ecuatorianos: verde solo si tiene 10 dígitos
+        if (IsEcuadorian())
+        {
+            if (_customer.PhoneNumber.Length == 10)
+                return "border-green-500 focus:border-green-600";
+            else
+                return "border-yellow-500 focus:border-yellow-600";
+        }
 
         return "border-green-500 focus:border-green-600";
     }

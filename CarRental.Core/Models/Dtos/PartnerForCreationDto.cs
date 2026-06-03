@@ -34,6 +34,9 @@ namespace CarRental.Core.Models.Dtos
         [StringLength(100, ErrorMessage = "El país no puede exceder los 100 caracteres.")]
         public string Country { get; set; }
 
+        [StringLength(100)]
+        public string? Nationality { get; set; }
+
         [Required(ErrorMessage = "La provincia es obligatoria.")]
         [StringLength(100, ErrorMessage = "La provincia no puede exceder los 100 caracteres.")]
         public string Province { get; set; }

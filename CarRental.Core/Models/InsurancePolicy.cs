@@ -57,7 +57,7 @@ namespace CarRental.Core.Models
         public InsurancePolicyType TypePolicy { get; set; }
 
         [Required(ErrorMessage = "El deducible es obligatorio.")]
-        [Range(0, double.MaxValue, ErrorMessage = "El deducible debe ser positivo.")]
+        [Range(0.00, double.MaxValue, ErrorMessage = "El deducible debe ser positivo.")]
         [Column(TypeName = "decimal(18, 2)")]
         public decimal Deducible { get; set; }
 
