@@ -83,14 +83,6 @@ builder.Services.AddScoped<IVehicleSubResourceApiClient<Repair, RepairForCreatio
         "repairs"
     ));
 
-//builder.Services.AddScoped(sp =>
-//{
-//    var authState = sp.GetRequiredService<AuthStateService>();
-//    var permissionClient = sp.GetRequiredService<PermissionApiClient>();
-//    authState.SetPermissionApiClient(permissionClient);
-//    return authState;
-//});
-
 // ===== SERVICIOS ADICIONALES =====
 builder.Services.AddBlazoredToast();
 builder.Services.AddScoped<CarRental.Web.Services.ModalService>();

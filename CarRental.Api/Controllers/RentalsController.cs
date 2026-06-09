@@ -520,7 +520,7 @@ namespace CarRental.Api.Controllers
                 rental.Status = Rental.RentalStatus.Completado;
                 rental.ActualReturnDate = DateTime.UtcNow;
 
-                await _rentalService.UpdateRentalAsync(rental);
+                await _rentalService.FinalizeRentalAsync(id, DateTime.UtcNow);
 
                 await _auditService.LogActionAsync(
                     userId: userId,

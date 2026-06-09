@@ -11,10 +11,10 @@ namespace CarRental.Api.Services
         private readonly ILogger<RentalStatusBackgroundService> _logger;
         private readonly TimeSpan _period = TimeSpan.FromHours(1); // Ejecutar cada hora
 
-        public RentalStatusBackgroundService(IServiceProvider serviceProvider, ILogger<RentalStatusBackgroundService> logger)
+        public RentalStatusBackgroundService(IServiceProvider serviceProvider, ILogger<RentalStatusBackgroundService> _logger)
         {
             _serviceProvider = serviceProvider;
-            _logger = logger;
+            this._logger = _logger;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -27,6 +27,9 @@ namespace CarRental.Api.Services
             }
         }
 
+        // ============================================================================
+        // ✅ MÉTODO MEJORADO: Ahora actualiza AMBOS estados (Reservado→Activo y Activo→Vencido)
+        // ============================================================================
         private async Task UpdateRentalStatuses()
         {
             try
@@ -35,42 +38,111 @@ namespace CarRental.Api.Services
                 var context = scope.ServiceProvider.GetRequiredService<CarRentalDbContext>();
 
                 var today = DateTime.Today;
+                _logger.LogInformation("Iniciando actualización de estados de alquileres. Fecha: {Today}", today);
 
-                // Buscar rentals que necesitan cambio de estado
-                var rentalsToUpdate = await context.Rentals
+                // ============================================================================
+                // ✅ LÓGICA 1: Cambiar Reservado → Activo (cuando llega la fecha de inicio)
+                // ============================================================================
+                var reservedRentalsToActivate = await context.Rentals
                     .Where(r => r.Status == Rental.RentalStatus.Reservado && r.StartDate.Date == today)
                     .ToListAsync();
 
-                if (!rentalsToUpdate.Any())
-                    return;
-
-                // ✅ OPTIMIZACIÓN: Cargar TODOS los vehículos en UNA SOLA consulta (en lugar de N consultas)
-                var vehicleIds = rentalsToUpdate.Select(r => r.VehicleId).ToList();
-                var vehicles = await context.Vehicles
-                    .Where(v => vehicleIds.Contains(v.Id))
-                    .ToDictionaryAsync(v => v.Id);
-
-                // Actualizar rentals y vehículos
-                foreach (var rental in rentalsToUpdate)
+                if (reservedRentalsToActivate.Any())
                 {
-                    // Cambiar de Reservado a Activo
-                    rental.Status = Rental.RentalStatus.Activo;
+                    _logger.LogInformation("Encontrados {Count} alquileres Reservados que deben activarse", reservedRentalsToActivate.Count);
 
-                    // Actualizar el estado del vehículo
-                    if (vehicles.TryGetValue(rental.VehicleId, out var vehicle))
+                    // ✅ OPTIMIZACIÓN: Cargar TODOS los vehículos en UNA SOLA consulta
+                    var vehicleIds = reservedRentalsToActivate.Select(r => r.VehicleId).ToList();
+                    var vehicles = await context.Vehicles
+                        .Where(v => vehicleIds.Contains(v.Id))
+                        .ToDictionaryAsync(v => v.Id);
+
+                    foreach (var rental in reservedRentalsToActivate)
                     {
-                        vehicle.State = Vehicle.VehicleState.Alquilado;
+                        // Cambiar de Reservado a Activo
+                        rental.Status = Rental.RentalStatus.Activo;
+
+                        // Actualizar el estado del vehículo
+                        if (vehicles.TryGetValue(rental.VehicleId, out var vehicle))
+                        {
+                            vehicle.State = Vehicle.VehicleState.Alquilado;
+                            _logger.LogInformation("Vehículo {VehicleId} cambiado a Alquilado", vehicle.Id);
+                        }
+
+                        _logger.LogInformation("Alquiler {RentalId} cambió de Reservado a Activo (Fecha inicio: {StartDate})",
+                            rental.Id, rental.StartDate.Date);
                     }
 
-                    _logger.LogInformation("Rental {RentalId} status changed from Reservado to Activo", rental.Id);
+                    await context.SaveChangesAsync();
+                    _logger.LogInformation("✅ Actualizados {Count} alquileres: Reservado → Activo", reservedRentalsToActivate.Count);
                 }
 
-                await context.SaveChangesAsync();
-                _logger.LogInformation("Updated {Count} rental statuses", rentalsToUpdate.Count);
+                // ============================================================================
+                // ✅ LÓGICA 2: Cambiar Activo → Vencido (cuando pasa la fecha de fin) - NUEVA
+                // ============================================================================
+                var activeRentalsOverdue = await context.Rentals
+                    .Where(r => r.Status == Rental.RentalStatus.Activo && r.EndDate.Date < today)
+                    .ToListAsync();
+
+                if (activeRentalsOverdue.Any())
+                {
+                    _logger.LogInformation("Encontrados {Count} alquileres Activos que han vencido", activeRentalsOverdue.Count);
+
+                    // ✅ OPTIMIZACIÓN: Cargar TODOS los vehículos en UNA SOLA consulta
+                    var overdueVehicleIds = activeRentalsOverdue.Select(r => r.VehicleId).ToList();
+                    var overdueVehicles = await context.Vehicles
+                        .Where(v => overdueVehicleIds.Contains(v.Id))
+                        .ToDictionaryAsync(v => v.Id);
+
+                    foreach (var rental in activeRentalsOverdue)
+                    {
+                        var previousStatus = rental.Status;
+                        rental.Status = Rental.RentalStatus.Vencido;
+
+                        // NOTA: Mantener vehículo como "Alquilado" para indicar que necesita devolución
+                        // Opción alternativa: cambiar a Disponible si prefieres que se pueda alquilar de nuevo
+                        if (overdueVehicles.TryGetValue(rental.VehicleId, out var vehicle))
+                        {
+                            // ✅ RECOMENDADO: Mantener como Alquilado para avisar que necesita devolución
+                            vehicle.State = Vehicle.VehicleState.Alquilado;
+                            _logger.LogInformation("Vehículo {VehicleId} permanece como Alquilado (alquiler vencido)", vehicle.Id);
+                        }
+
+                        _logger.LogInformation(
+                            "Alquiler {RentalId} cambió de {PreviousStatus} a Vencido (EndDate: {EndDate}, Hoy: {Today}, Días vencido: {DaysOverdue})",
+                            rental.Id,
+                            previousStatus,
+                            rental.EndDate.Date,
+                            today,
+                            (today - rental.EndDate.Date).Days
+                        );
+                    }
+
+                    await context.SaveChangesAsync();
+                    _logger.LogInformation("✅ Actualizados {Count} alquileres: Activo → Vencido", activeRentalsOverdue.Count);
+                }
+
+                // ============================================================================
+                // 📊 RESUMEN DE EJECUCIÓN
+                // ============================================================================
+                var totalUpdated = (reservedRentalsToActivate?.Count ?? 0) + (activeRentalsOverdue?.Count ?? 0);
+                if (totalUpdated > 0)
+                {
+                    _logger.LogInformation(
+                        "✅ Actualización completada. Total de alquileres procesados: {TotalUpdated} (Reservado→Activo: {Activated}, Activo→Vencido: {Overdue})",
+                        totalUpdated,
+                        reservedRentalsToActivate?.Count ?? 0,
+                        activeRentalsOverdue?.Count ?? 0
+                    );
+                }
+                else
+                {
+                    _logger.LogInformation("ℹ️  No hay alquileres que actualizar en este momento");
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error updating rental statuses");
+                _logger.LogError(ex, "❌ Error actualizando estados de alquileres");
             }
         }
     }

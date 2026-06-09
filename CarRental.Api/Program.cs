@@ -23,6 +23,7 @@ using System.Text;
 using Microsoft.OpenApi.Models;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using CarRental.Api;
+using CarRental.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -74,6 +75,7 @@ builder.Services.AddScoped<IInsurancePolicyService, InsurancePolicyService>();
 builder.Services.AddScoped<IMaintenanceService, MaintenanceService>();
 builder.Services.AddScoped<IRepairService, RepairService>();
 builder.Services.AddHostedService<CarRental.Api.Services.RentalStatusBackgroundService>();
+builder.Services.AddScoped<RentalInitializationService>();
 builder.Services.AddScoped<IUserRepository, UserRepository>();
 builder.Services.AddScoped<IUserSessionRepository, UserSessionRepository>();
 builder.Services.AddScoped<IUserService, UserService>();
@@ -224,7 +226,9 @@ if (app.Environment.IsDevelopment())
         c.RoutePrefix = "swagger";
     });
 
+    // ========================================
     // Aplicar migraciones automáticamente en desarrollo
+    // ========================================
     using (var scope = app.Services.CreateScope())
     {
         var dbContext = scope.ServiceProvider.GetRequiredService<CarRentalDbContext>();
@@ -249,6 +253,30 @@ if (app.Environment.IsDevelopment())
         {
             app.Logger.LogError(ex, "✗ Error al aplicar migraciones");
         }
+    }
+}
+
+// ========================================
+// ✅ INICIALIZACIÓN DE ALQUILERES (EN TODOS LOS AMBIENTES)
+// ========================================
+// Se ejecuta en desarrollo Y en producción
+// Esto asegura que siempre estén actualizados los estados de alquileres
+// al iniciar la aplicación, incluso si estuvo cerrada
+// ========================================
+
+app.Logger.LogInformation("🚀 Ejecutando inicialización de alquileres...");
+using (var scope = app.Services.CreateScope())
+{
+    try
+    {
+        var rentalInitService = scope.ServiceProvider.GetRequiredService<RentalInitializationService>();
+        await rentalInitService.InitializeRentalStatusesAsync();
+        app.Logger.LogInformation("✅ Inicialización de alquileres completada exitosamente");
+    }
+    catch (Exception ex)
+    {
+        app.Logger.LogError(ex, "❌ Error durante la inicialización de alquileres");
+        // No relanzar la excepción para no romper el startup
     }
 }
 
