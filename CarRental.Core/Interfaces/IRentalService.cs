@@ -15,7 +15,7 @@ namespace CarRental.Core.Interfaces
         Task UpdateRentalAsync(Rental rental);
         Task DeleteRentalAsync(int id);
         Task FinalizeRentalAsync(int rentalId, DateTime actualReturnDate);
-
+        Task CancelRentalAsync(int rentalId, decimal cancellationAmount = 0);
         Task<decimal> CalculateRentalCostAsync(DateTime startDate, DateTime endDate, decimal dailyRate);
 
         Task<ApiResult<byte[]>> GenerateRentalContractPdfAsync(int rentalId);

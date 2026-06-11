@@ -1,16 +1,17 @@
 ﻿// CarRental.Infrastructure/Services/RentalService.cs
 using CarRental.Core.Interfaces;
-using CarRental.Infrastructure.Interfaces;
 using CarRental.Core.Models;
 using CarRental.Core.Models.Dtos;
 using CarRental.Infrastructure.Data;
+using CarRental.Infrastructure.Interfaces;
+using CarRental.Infrastructure.Repositories;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
-using Microsoft.EntityFrameworkCore;
 
 namespace CarRental.Infrastructure.Services
 {
@@ -25,7 +26,7 @@ namespace CarRental.Infrastructure.Services
         private readonly IPdfGeneratorService _pdfGeneratorService;
         private readonly ICompanySettingsService _companySettingsService;
         private readonly ContractNumberService _contractNumberService;
-
+        private readonly IPaymentRepository _paymentRepository;
         public RentalService(
             IRentalRepository rentalRepository,
             IVehicleRepository vehicleRepository,
@@ -33,7 +34,8 @@ namespace CarRental.Infrastructure.Services
             CarRentalDbContext context,
             IPdfGeneratorService pdfGeneratorService,
             ICompanySettingsService companySettingsService,
-            ContractNumberService contractNumberService)
+            ContractNumberService contractNumberService,
+            IPaymentRepository paymentRepository)
         {
             _rentalRepository = rentalRepository;
             _vehicleRepository = vehicleRepository;
@@ -42,6 +44,7 @@ namespace CarRental.Infrastructure.Services
             _pdfGeneratorService = pdfGeneratorService;
             _companySettingsService = companySettingsService;
             _contractNumberService = contractNumberService;
+            _paymentRepository = paymentRepository;
         }
 
         public async Task<IEnumerable<Rental>> GetAllRentalsAsync()
@@ -111,12 +114,27 @@ namespace CarRental.Infrastructure.Services
                     throw new ArgumentException("Renta no encontrada.");
                 }
 
-                // ✅ VALIDAR: Solo se puede finalizar desde Activo o Vencido
+                // ✅ VALIDACIÓN 1: Solo se puede finalizar desde Activo o Vencido
                 if (rental.Status != Rental.RentalStatus.Activo && rental.Status != Rental.RentalStatus.Vencido)
                 {
                     _logger.LogWarning("Alquiler con ID {RentalId} no puede finalizarse desde estado {RentalStatus}.", rentalId, rental.Status);
                     throw new InvalidOperationException($"El alquiler no puede finalizarse desde estado {rental.Status}. Solo se puede finalizar desde Activo o Vencido.");
                 }
+
+                // ============================================================================
+                // ✅ VALIDACIÓN 2: VERIFICAR QUE EXISTA PAGO
+                // ============================================================================
+                var payments = await _paymentRepository.GetPaymentsByRentalIdAsync(rentalId);
+                if (payments == null || !payments.Any())
+                {
+                    _logger.LogWarning("Alquiler con ID {RentalId} no tiene pagos registrados para finalizar.", rentalId);
+                    throw new InvalidOperationException("No se puede finalizar el alquiler sin pagos registrados. Debe agregar al menos un pago.");
+                }
+
+                // ============================================================================
+                // ✅ VALIDACIÓN 3: VERIFICAR QUE EL PAGO SEA IGUAL AL COSTO TOTAL
+                // ============================================================================
+                var totalPaid = await _paymentRepository.GetTotalPaidByRentalIdAsync(rentalId);
 
                 rental.ActualReturnDate = actualReturnDate;
 
@@ -156,12 +174,35 @@ namespace CarRental.Infrastructure.Services
 
                 rental.TotalCost = newTotalCost;
 
+                // ============================================================================
+                // ✅ VALIDACIÓN 4: VERIFICAR QUE EL PAGO SEA IGUAL AL COSTO TOTAL
+                // ============================================================================
+                if (totalPaid != rental.TotalCost)
+                {
+                    _logger.LogWarning("Alquiler con ID {RentalId} pago insuficiente. Pagado: {TotalPaid}, Requerido: {TotalCost}",
+                        rentalId, totalPaid, rental.TotalCost);
+                    throw new InvalidOperationException(
+                        $"El monto total pagado ({totalPaid:C}) no coincide con el costo total del alquiler ({rental.TotalCost:C}). " +
+                        $"Debe pagar exactamente el monto total antes de finalizar.");
+                }
+
+                // ============================================================================
+                // ✅ MEJORA: ACTUALIZAR ENDDATE CUANDO SE FINALIZA UN ALQUILER VENCIDO
+                // ============================================================================
+                if (rental.Status == Rental.RentalStatus.Vencido)
+                {
+                    // Actualizar EndDate a la fecha real de devolución
+                    rental.EndDate = actualReturnDate;
+                    _logger.LogInformation("Alquiler {RentalId} era Vencido. EndDate actualizado a fecha real de devolución: {ActualReturnDate}",
+                        rentalId, actualReturnDate);
+                }
+
                 // ✅ SIEMPRE FINALIZAR COMO COMPLETADO (independiente de si hubo retraso o venía de Vencido)
                 rental.Status = Rental.RentalStatus.Completado;
 
                 await _rentalRepository.UpdateAsync(rental);
-                _logger.LogInformation("Alquiler con ID {RentalId} finalizado exitosamente. Estado: COMPLETADO, Costo Total: {TotalCost}",
-                    rentalId, rental.TotalCost);
+                _logger.LogInformation("Alquiler con ID {RentalId} finalizado exitosamente. Estado: COMPLETADO, Costo Total: {TotalCost}, Pagado: {TotalPaid}",
+                    rentalId, rental.TotalCost, totalPaid);
 
                 // ✅ SIEMPRE cambiar vehículo a Disponible al finalizar
                 var vehicle = await _vehicleRepository.GetByIdAsync(rental.VehicleId);
@@ -175,6 +216,75 @@ namespace CarRental.Infrastructure.Services
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error al finalizar el alquiler con ID {RentalId}.", rentalId);
+                throw;
+            }
+        }
+
+        public async Task CancelRentalAsync(int rentalId, decimal cancellationAmount = 0)
+        {
+            _logger.LogInformation("Iniciando cancelación del alquiler con ID {RentalId}. Monto de cancelación: {CancellationAmount}", rentalId, cancellationAmount);
+            try
+            {
+                var rental = await _rentalRepository.GetRentalWithDetailsByIdAsync(rentalId);
+                if (rental == null)
+                {
+                    _logger.LogWarning("Alquiler con ID {RentalId} no encontrado para la cancelación.", rentalId);
+                    throw new ArgumentException("Alquiler no encontrado.");
+                }
+
+                // ✅ VALIDACIÓN 1: Solo se puede cancelar desde Reservado o Activo
+                if (rental.Status != Rental.RentalStatus.Reservado && rental.Status != Rental.RentalStatus.Activo)
+                {
+                    _logger.LogWarning("Alquiler con ID {RentalId} no puede cancelarse desde estado {RentalStatus}.", rentalId, rental.Status);
+                    throw new InvalidOperationException($"Solo se pueden cancelar alquileres en estado Reservado o Activo. Estado actual: {rental.Status}");
+                }
+
+                // ============================================================================
+                // ✅ VALIDACIÓN 2: Si hay monto de cancelación, debe haber pago registrado
+                // ============================================================================
+                if (cancellationAmount > 0)
+                {
+                    var payments = await _paymentRepository.GetPaymentsByRentalIdAsync(rentalId);
+                    if (payments == null || !payments.Any())
+                    {
+                        _logger.LogWarning("Alquiler con ID {RentalId} intenta cancelarse con monto pero sin pagos registrados.", rentalId);
+                        throw new InvalidOperationException(
+                            "No se puede cancelar el alquiler con monto de cancelación sin pago registrado. " +
+                            "Debe registrar el pago de cancelación antes de cancelar.");
+                    }
+
+                    // ✅ VALIDACIÓN 3: El pago debe ser igual al monto de cancelación
+                    var totalPaid = await _paymentRepository.GetTotalPaidByRentalIdAsync(rentalId);
+                    if (totalPaid != cancellationAmount)
+                    {
+                        _logger.LogWarning("Alquiler con ID {RentalId} cancelación con monto incorrecto. Pagado: {TotalPaid}, Requerido: {CancellationAmount}",
+                            rentalId, totalPaid, cancellationAmount);
+                        throw new InvalidOperationException(
+                            $"El monto pagado ({totalPaid:C}) no coincide con el monto de cancelación ({cancellationAmount:C}). " +
+                            $"Debe pagar exactamente el monto de cancelación.");
+                    }
+                }
+
+                // Cambiar estado a Cancelado
+                rental.Status = Rental.RentalStatus.Cancelado;
+                rental.ActualReturnDate = DateTime.UtcNow;
+
+                await _rentalRepository.UpdateAsync(rental);
+                _logger.LogInformation("Alquiler con ID {RentalId} cancelado exitosamente. Monto de cancelación: {CancellationAmount}",
+                    rentalId, cancellationAmount);
+
+                // ✅ Cambiar vehículo a Disponible al cancelar
+                var vehicle = await _vehicleRepository.GetByIdAsync(rental.VehicleId);
+                if (vehicle != null)
+                {
+                    vehicle.State = Vehicle.VehicleState.Disponible;
+                    await _vehicleRepository.UpdateAsync(vehicle);
+                    _logger.LogInformation("Estado del vehículo con ID {VehicleId} actualizado a DISPONIBLE después de cancelar alquiler.", vehicle.Id);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al cancelar el alquiler con ID {RentalId}.", rentalId);
                 throw;
             }
         }

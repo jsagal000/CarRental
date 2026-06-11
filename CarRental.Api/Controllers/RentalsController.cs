@@ -517,10 +517,12 @@ namespace CarRental.Api.Controllers
                 }
 
                 // ✅ Cambiar estado a Finalizado (incluso si estaba Vencido)
-                rental.Status = Rental.RentalStatus.Completado;
-                rental.ActualReturnDate = DateTime.UtcNow;
+                //rental.Status = Rental.RentalStatus.Completado;
+                //rental.ActualReturnDate = DateTime.UtcNow;
 
                 await _rentalService.FinalizeRentalAsync(id, DateTime.UtcNow);
+
+                rental = await _rentalService.GetRentalByIdAsync(id);
 
                 await _auditService.LogActionAsync(
                     userId: userId,
